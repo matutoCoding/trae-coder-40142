@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import dayjs from 'dayjs';
 import type {
   Apartment,
   Tenant,
@@ -9,9 +10,11 @@ import type {
   CommissionRule,
   BillItem,
   DepositRecord,
+  DepositDeduction,
   SettlementPeriod,
   SettlementRecord,
   CommissionSplit,
+  SettlementAdjustment,
 } from '../core/types';
 import {
   mockApartments,
@@ -27,7 +30,9 @@ import {
   mockSettlementRecords,
 } from '../core/mockData';
 import { calculateDiscounts } from '../core/discountEngine';
-import { splitCommission } from '../core/commissionSplitter';
+import { generateMonthlyBills } from '../core/billGenerator';
+import { splitCommission, aggregateIncomeByParty } from '../core/commissionSplitter';
+import { reconcilePeriod, settlePeriod } from '../core/reconciliator';
 
 interface RentStore {
   apartments: Apartment[];
@@ -41,7 +46,6 @@ interface RentStore {
   deposits: DepositRecord[];
   settlementPeriods: SettlementPeriod[];
   settlementRecords: SettlementRecord[];
-  commissionSplits: CommissionSplit[];
   selectedApartmentId: string;
 
   setSelectedApartment: (id: string) => void;
@@ -53,13 +57,19 @@ interface RentStore {
   updateCommissionRule: (rule: CommissionRule) => void;
   addBill: (bill: BillItem) => void;
   updateBillStatus: (id: string, status: BillItem['status']) => void;
+  generateBillsForMonth: (apartmentId: string, yearMonth: string) => BillItem[];
   addDeposit: (deposit: DepositRecord) => void;
-  updateDepositStatus: (id: string, status: DepositRecord['status']) => void;
+  updateDeposit: (id: string, deposit: Partial<DepositRecord>) => void;
+  processDepositDeductions: (depositId: string, deductions: DepositDeduction[]) => DepositRecord;
   addSettlementPeriod: (period: SettlementPeriod) => void;
   updateSettlementPeriod: (id: string, period: Partial<SettlementPeriod>) => void;
   addSettlementRecord: (record: SettlementRecord) => void;
-  recalculateBills: () => void;
+  updateSettlementRecord: (id: string, record: Partial<SettlementRecord>) => void;
+  reconcilePeriodAction: (periodId: string) => void;
+  settlePeriodAction: (periodId: string) => void;
   previewDiscount: (amount: number, apartmentId?: string) => ReturnType<typeof calculateDiscounts>;
+  getCommissionSplits: (apartmentId: string) => CommissionSplit[];
+  getLandlordIncomeSummary: (apartmentId: string) => { landlordId: string; landlordName: string; income: number }[];
 }
 
 export const useRentStore = create<RentStore>((set, get) => ({
@@ -74,7 +84,6 @@ export const useRentStore = create<RentStore>((set, get) => ({
   deposits: mockDeposits,
   settlementPeriods: mockSettlementPeriods,
   settlementRecords: mockSettlementRecords,
-  commissionSplits: [],
   selectedApartmentId: 'APT001',
 
   setSelectedApartment: (id) => set({ selectedApartmentId: id }),
@@ -118,18 +127,82 @@ export const useRentStore = create<RentStore>((set, get) => ({
 
   updateBillStatus: (id, status) =>
     set((state) => ({
-      bills: state.bills.map((b) => (b.id === id ? { ...b, status } : b)),
+      bills: state.bills.map((b) => (b.id === id ? { ...b, status, paidAt: status === 'PAID' ? dayjs().format('YYYY-MM-DD HH:mm:ss') : b.paidAt } : b)),
     })),
+
+  generateBillsForMonth: (apartmentId, yearMonth) => {
+    const state = get();
+    const billingRule = state.billingRules.find((br) => br.apartmentId === apartmentId);
+    if (!billingRule) return [];
+
+    const activeTenants = state.tenants.filter(
+      (t) => t.apartmentId === apartmentId && dayjs(t.leaseEnd).isAfter(dayjs(yearMonth + '-01'))
+    );
+
+    const existingBillsForMonth = state.bills.filter(
+      (b) => b.apartmentId === apartmentId && b.periodStart.startsWith(yearMonth)
+    );
+    const existingTenantIds = new Set(existingBillsForMonth.map((b) => b.tenantId));
+
+    const tenantsToBill = activeTenants.filter((t) => !existingTenantIds.has(t.id));
+
+    if (tenantsToBill.length === 0) return [];
+
+    const newBills = generateMonthlyBills(
+      billingRule,
+      tenantsToBill.map((t) => ({ id: t.id, name: t.name, roomNumber: t.roomNumber, landlordId: t.landlordId })),
+      yearMonth,
+      state.discountRules,
+      state.discountOrder
+    );
+
+    set((state) => ({
+      bills: [...state.bills, ...newBills],
+    }));
+
+    return newBills;
+  },
 
   addDeposit: (deposit) =>
     set((state) => ({
       deposits: [...state.deposits, deposit],
     })),
 
-  updateDepositStatus: (id, status) =>
+  updateDeposit: (id, deposit) =>
     set((state) => ({
-      deposits: state.deposits.map((d) => (d.id === id ? { ...d, status } : d)),
+      deposits: state.deposits.map((d) => (d.id === id ? { ...d, ...deposit } : d)),
     })),
+
+  processDepositDeductions: (depositId, deductions) => {
+    const state = get();
+    const deposit = state.deposits.find((d) => d.id === depositId);
+    if (!deposit) throw new Error('押金记录不存在');
+
+    const totalDeductions = deductions.reduce((sum, d) => sum + d.amount, 0);
+    const refundAmount = Math.max(0, deposit.depositAmount - totalDeductions);
+
+    let status: DepositRecord['status'];
+    if (totalDeductions === 0) {
+      status = 'FULL_REFUND';
+    } else if (refundAmount > 0) {
+      status = 'PARTIAL_REFUND';
+    } else {
+      status = 'FORFEITED';
+    }
+
+    const updated: DepositRecord = {
+      ...deposit,
+      deductions,
+      refundAmount,
+      status,
+    };
+
+    set((state) => ({
+      deposits: state.deposits.map((d) => (d.id === depositId ? updated : d)),
+    }));
+
+    return updated;
+  },
 
   addSettlementPeriod: (period) =>
     set((state) => ({
@@ -148,34 +221,66 @@ export const useRentStore = create<RentStore>((set, get) => ({
       settlementRecords: [...state.settlementRecords, record],
     })),
 
-  recalculateBills: () =>
-    set((state) => {
-      const { discountRules, discountOrder, commissionRules, billingRules } = state;
-      const updatedBills = state.bills.map((bill) => {
-        const billingRule = billingRules.find((br) => br.apartmentId === bill.apartmentId);
-        if (!billingRule) return bill;
-        const discountResult = calculateDiscounts(
-          billingRule.rentAmount,
-          discountRules,
-          discountOrder
-        );
-        const totalAmount = discountResult.finalAmount + bill.lateFee;
-        return {
-          ...bill,
-          rentAmount: billingRule.rentAmount,
-          discountResult,
-          totalAmount: Math.max(0, totalAmount),
-        };
-      });
+  updateSettlementRecord: (id, record) =>
+    set((state) => ({
+      settlementRecords: state.settlementRecords.map((r) =>
+        r.id === id ? { ...r, ...record } : r
+      ),
+    })),
 
-      const updatedSplits = updatedBills.map((bill) => {
-        const rule = commissionRules.find((cr) => cr.apartmentId === bill.apartmentId);
-        if (!rule) return null;
-        return splitCommission(bill, rule);
-      }).filter(Boolean) as CommissionSplit[];
+  reconcilePeriodAction: (periodId) => {
+    const state = get();
+    const period = state.settlementPeriods.find((p) => p.id === periodId);
+    if (!period) return;
 
-      return { bills: updatedBills, commissionSplits: updatedSplits };
-    }),
+    const periodBills = state.bills.filter(
+      (b) => b.apartmentId === period.apartmentId && b.periodStart.startsWith(period.yearMonth) && b.status === 'PAID'
+    );
+
+    const splits: CommissionSplit[] = [];
+    for (const bill of periodBills) {
+      const rule = state.commissionRules.find(
+        (cr) => cr.apartmentId === bill.apartmentId && cr.landlordId === bill.landlordId
+      );
+      if (rule) {
+        splits.push(splitCommission(bill, rule));
+      }
+    }
+
+    const adjustments = new Map<string, SettlementAdjustment[]>();
+    const records = reconcilePeriod(period, splits, adjustments);
+
+    const newRecords = records.filter(
+      (r) => !state.settlementRecords.some((sr) => sr.periodId === r.periodId && sr.partyId === r.partyId)
+    );
+
+    set((state) => ({
+      settlementRecords: [...state.settlementRecords, ...newRecords],
+      settlementPeriods: state.settlementPeriods.map((p) =>
+        p.id === periodId ? { ...p, status: 'RECONCILING' as const } : p
+      ),
+    }));
+  },
+
+  settlePeriodAction: (periodId) => {
+    const state = get();
+    const period = state.settlementPeriods.find((p) => p.id === periodId);
+    if (!period) return;
+
+    const periodRecords = state.settlementRecords.filter((r) => r.periodId === periodId);
+
+    const result = settlePeriod(period, periodRecords);
+
+    set((state) => ({
+      settlementPeriods: state.settlementPeriods.map((p) =>
+        p.id === periodId ? result.period : p
+      ),
+      settlementRecords: state.settlementRecords.map((r) => {
+        const settled = result.records.find((sr) => sr.id === r.id);
+        return settled ? settled : r;
+      }),
+    }));
+  },
 
   previewDiscount: (amount, apartmentId) => {
     const { discountRules, discountOrder } = get();
@@ -183,5 +288,27 @@ export const useRentStore = create<RentStore>((set, get) => ({
       ? { ...discountOrder, apartmentId }
       : discountOrder;
     return calculateDiscounts(amount, discountRules, order);
+  },
+
+  getCommissionSplits: (apartmentId) => {
+    const state = get();
+    const apartmentBills = state.bills.filter((b) => b.apartmentId === apartmentId);
+    return apartmentBills.map((bill) => {
+      const rule = state.commissionRules.find(
+        (cr) => cr.apartmentId === bill.apartmentId && cr.landlordId === bill.landlordId
+      );
+      if (!rule) return null;
+      return splitCommission(bill, rule);
+    }).filter((s): s is CommissionSplit => s !== null);
+  },
+
+  getLandlordIncomeSummary: (apartmentId) => {
+    const splits = get().getCommissionSplits(apartmentId);
+    const aggregation = aggregateIncomeByParty(splits);
+    return Array.from(aggregation.landlordIncomes.entries()).map(([landlordId, data]) => ({
+      landlordId,
+      landlordName: data.name,
+      income: data.income,
+    }));
   },
 }));

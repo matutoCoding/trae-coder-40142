@@ -632,3 +632,118 @@
 .adm-card-body {
   border-radius: 12px;
 }
+
+.bill-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  justify-content: flex-end;
+}
+
+.dialog-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.form-hint {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.deposit-card {
+  border-radius: 12px;
+  margin-bottom: 8px;
+}
+
+.deposit-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.deposit-tenant {
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.deposit-room {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.deposit-body {
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+
+.deposit-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 3px 0;
+  font-size: 13px;
+}
+
+.deposit-row.total {
+  border-top: 1px dashed var(--border);
+  margin-top: 4px;
+  padding-top: 6px;
+  font-weight: 600;
+}
+
+.deposit-row.deduction {
+  color: var(--danger);
+  font-size: 12px;
+  padding-left: 8px;
+}
+
+.deduction-list {
+  margin: 4px 0;
+}
+
+.deduction-title {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.deduction-amount {
+  color: var(--danger);
+}
+
+.refund-amount {
+  color: var(--primary);
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.deposit-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  justify-content: flex-end;
+}
+
+.tenant-init-card {
+  border-radius: 12px;
+  margin-bottom: 8px;
+}
+
+.existing-deductions {
+  margin-bottom: 8px;
+}
+
+.deduction-item-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+  font-size: 13px;
+  border-bottom: 1px solid var(--border);
+}
+
+.settled-time-row {
+  margin-top: 4px;
+}

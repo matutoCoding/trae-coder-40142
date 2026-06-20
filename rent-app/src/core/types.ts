@@ -43,6 +43,7 @@ export interface DiscountCalcStep {
   type: DiscountType;
   amountBefore: number;
   discountAmount: number;
+  amountAfterStep: number;
   amountAfter: number;
 }
 
@@ -72,6 +73,7 @@ export interface BillItem {
   tenantId: string;
   tenantName: string;
   roomNumber: string;
+  landlordId: string;
   periodStart: string;
   periodEnd: string;
   rentAmount: number;
@@ -165,6 +167,7 @@ export interface Tenant {
   phone: string;
   apartmentId: string;
   roomNumber: string;
+  landlordId: string;
   leaseStart: string;
   leaseEnd: string;
 }

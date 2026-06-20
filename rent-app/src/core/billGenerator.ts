@@ -5,10 +5,10 @@ import type {
   BillStatus,
   DepositRecord,
   DepositDeduction,
-  DiscountCalcResult,
+  DiscountRule,
+  DiscountOrderConfig,
 } from './types';
 import { calculateDiscounts } from './discountEngine';
-import type { DiscountRule, DiscountOrderConfig } from './types';
 
 let billCounter = 0;
 
@@ -22,6 +22,7 @@ export function generateBill(
   tenantId: string,
   tenantName: string,
   roomNumber: string,
+  landlordId: string,
   periodStart: string,
   periodEnd: string,
   discountRules: DiscountRule[],
@@ -59,6 +60,7 @@ export function generateBill(
     tenantId,
     tenantName,
     roomNumber,
+    landlordId,
     periodStart,
     periodEnd,
     rentAmount: billingRule.rentAmount,
@@ -72,7 +74,7 @@ export function generateBill(
 
 export function generateMonthlyBills(
   billingRule: BillingRule,
-  tenants: { id: string; name: string; roomNumber: string }[],
+  tenants: { id: string; name: string; roomNumber: string; landlordId: string }[],
   yearMonth: string,
   discountRules: DiscountRule[],
   orderConfig?: DiscountOrderConfig
@@ -87,6 +89,7 @@ export function generateMonthlyBills(
       tenant.id,
       tenant.name,
       tenant.roomNumber,
+      tenant.landlordId,
       periodStart,
       periodEnd,
       discountRules,
@@ -110,7 +113,9 @@ export function calculateDepositRefund(
   const refundAmount = Math.max(0, depositAmount - totalDeductions);
 
   let status: DepositRecord['status'];
-  if (refundAmount === depositAmount) {
+  if (totalDeductions === 0) {
+    status = 'HELD';
+  } else if (refundAmount === depositAmount) {
     status = 'FULL_REFUND';
   } else if (refundAmount > 0) {
     status = 'PARTIAL_REFUND';

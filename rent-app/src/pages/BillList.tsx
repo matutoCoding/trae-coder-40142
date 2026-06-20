@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Card, Tag, Tabs, Button, Dialog } from 'antd-mobile';
+import { Card, Tag, Tabs, Button, Dialog, Toast, Picker, Stepper } from 'antd-mobile';
 import { useNavigate } from 'react-router-dom';
 import { useRentStore } from '../store/useStore';
 import { formatMoney } from '../core/reconciliator';
+import dayjs from 'dayjs';
 import type { BillStatus } from '../core/types';
 
 const statusColor: Record<BillStatus, string> = {
@@ -20,9 +21,24 @@ const statusLabel: Record<BillStatus, string> = {
 };
 
 const BillList: React.FC = () => {
-  const { bills, selectedApartmentId, updateBillStatus } = useRentStore();
+  const {
+    bills,
+    selectedApartmentId,
+    updateBillStatus,
+    billingRules,
+    updateBillingRule,
+    generateBillsForMonth,
+  } = useRentStore();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<string>('all');
+  const [showGenerate, setShowGenerate] = useState(false);
+  const [showBillingConfig, setShowBillingConfig] = useState(false);
+  const [generateMonth, setGenerateMonth] = useState<string>('2026-07');
+
+  const currentBillingRule = billingRules.find((br) => br.apartmentId === selectedApartmentId);
+  const [editRent, setEditRent] = useState(currentBillingRule?.rentAmount ?? 4500);
+  const [editGraceDays, setEditGraceDays] = useState(currentBillingRule?.graceDays ?? 5);
+  const [editLateFeeRate, setEditLateFeeRate] = useState(currentBillingRule?.lateFeeRate ?? 0.0005);
 
   const apartmentBills = bills.filter((b) => b.apartmentId === selectedApartmentId);
 
@@ -35,12 +51,50 @@ const BillList: React.FC = () => {
       content: '确认标记为已支付？',
       onConfirm: () => {
         updateBillStatus(billId, 'PAID');
+        Toast.show('已标记为已支付');
       },
     });
   };
 
+  const handleGenerateBills = () => {
+    const newBills = generateBillsForMonth(selectedApartmentId, generateMonth);
+    if (newBills.length === 0) {
+      Toast.show('该月份所有租户已有账单，无需重复生成');
+    } else {
+      Toast.show(`已生成 ${newBills.length} 笔账单`);
+    }
+    setShowGenerate(false);
+  };
+
+  const handleSaveBillingRule = () => {
+    if (!currentBillingRule) return;
+    updateBillingRule({
+      ...currentBillingRule,
+      rentAmount: editRent,
+      graceDays: editGraceDays,
+      lateFeeRate: editLateFeeRate,
+    });
+    Toast.show('租金规则已更新');
+    setShowBillingConfig(false);
+  };
+
+  const months = [];
+  for (let i = 0; i < 12; i++) {
+    const d = dayjs().add(i, 'month');
+    months.push({ label: d.format('YYYY年MM月'), value: d.format('YYYY-MM') });
+  }
+
   return (
     <div className="page-bills">
+      <div className="bill-actions">
+        <Button size="small" fill="outline" onClick={() => setShowBillingConfig(true)}>
+          租金规则
+        </Button>
+        <Button size="small" color="primary" onClick={() => setShowGenerate(true)}>
+          生成账单
+        </Button>
+      </div>
+
       <Tabs
         activeKey={activeTab}
         onChange={setActiveTab}
@@ -112,6 +166,65 @@ const BillList: React.FC = () => {
           </Card>
         ))}
       </div>
+
+      <Dialog
+        visible={showGenerate}
+        title="按月生成账单"
+        content={
+          <div className="dialog-form">
+            <div className="form-item">
+              <span>选择月份</span>
+              <Picker
+                columns={[months]}
+                onConfirm={(v) => setGenerateMonth(v[0] as string)}
+              >
+                {(_, actions) => (
+                  <Button size="small" fill="outline" onClick={actions.open}>
+                    {generateMonth}
+                  </Button>
+                )}
+              </Picker>
+            </div>
+            <div className="form-hint">
+              将为当前公寓的有效租户自动生成{generateMonth}月账单，已有账单的租户不会重复生成。
+            </div>
+          </div>
+        }
+        closeOnAction
+        onClose={() => setShowGenerate(false)}
+        actions={[
+          { key: "cancel", text: "取消" },
+          { key: "confirm", text: "生成", bold: true, onClick: handleGenerateBills },
+        ]}
+      />
+
+      <Dialog
+        visible={showBillingConfig}
+        title="租金规则配置"
+        content={
+          <div className="dialog-form">
+            <div className="form-item">
+              <span>月租金</span>
+              <Stepper value={editRent} onChange={(v) => setEditRent(v)} min={0} step={100} />
+            </div>
+            <div className="form-item">
+              <span>宽限期(天)</span>
+              <Stepper value={editGraceDays} onChange={(v) => setEditGraceDays(v)} min={0} step={1} />
+            </div>
+            <div className="form-item">
+              <span>滞纳金日利率</span>
+              <Stepper value={editLateFeeRate * 10000} onChange={(v) => setEditLateFeeRate(v / 10000)} min={0} step={1} digits={0} />
+              <span className="form-hint">× 万分之一</span>
+            </div>
+          </div>
+        }
+        closeOnAction
+        onClose={() => setShowBillingConfig(false)}
+        actions={[
+          { key: "cancel", text: "取消" },
+          { key: "confirm", text: "保存", bold: true, onClick: handleSaveBillingRule },
+        ]}
+      />
     </div>
   );
 };

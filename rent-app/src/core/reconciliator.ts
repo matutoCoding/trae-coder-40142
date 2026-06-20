@@ -102,7 +102,7 @@ export function reconcilePeriod(
 export function settlePeriod(
   period: SettlementPeriod,
   records: SettlementRecord[]
-): SettlementPeriod {
+): { period: SettlementPeriod; records: SettlementRecord[] } {
   const now = dayjs().format('YYYY-MM-DD HH:mm:ss');
   const settledRecords = records.map((r) => ({
     ...r,
@@ -110,8 +110,8 @@ export function settlePeriod(
   }));
 
   return {
-    ...period,
-    status: 'SETTLED' as const,
+    period: { ...period, status: 'SETTLED' as const },
+    records: settledRecords,
   };
 }
 

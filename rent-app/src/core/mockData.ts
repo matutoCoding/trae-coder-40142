@@ -24,11 +24,11 @@ export const mockLandlords: Landlord[] = [
 ];
 
 export const mockTenants: Tenant[] = [
-  { id: 'T001', name: '刘小明', phone: '15012345678', apartmentId: 'APT001', roomNumber: 'A-101', leaseStart: '2025-01-01', leaseEnd: '2026-12-31' },
-  { id: 'T002', name: '陈小红', phone: '15112345679', apartmentId: 'APT001', roomNumber: 'A-202', leaseStart: '2025-03-01', leaseEnd: '2026-06-30' },
-  { id: 'T003', name: '赵小刚', phone: '15212345680', apartmentId: 'APT001', roomNumber: 'B-301', leaseStart: '2025-06-01', leaseEnd: '2027-05-31' },
-  { id: 'T004', name: '孙小丽', phone: '15312345681', apartmentId: 'APT002', roomNumber: 'C-101', leaseStart: '2025-02-01', leaseEnd: '2026-07-31' },
-  { id: 'T005', name: '周小伟', phone: '15412345682', apartmentId: 'APT002', roomNumber: 'C-205', leaseStart: '2025-04-01', leaseEnd: '2026-09-30' },
+  { id: 'T001', name: '刘小明', phone: '15012345678', apartmentId: 'APT001', roomNumber: 'A-101', landlordId: 'LL001', leaseStart: '2025-01-01', leaseEnd: '2026-12-31' },
+  { id: 'T002', name: '陈小红', phone: '15112345679', apartmentId: 'APT001', roomNumber: 'A-202', landlordId: 'LL001', leaseStart: '2025-03-01', leaseEnd: '2026-06-30' },
+  { id: 'T003', name: '赵小刚', phone: '15212345680', apartmentId: 'APT001', roomNumber: 'B-301', landlordId: 'LL002', leaseStart: '2025-06-01', leaseEnd: '2027-05-31' },
+  { id: 'T004', name: '孙小丽', phone: '15312345681', apartmentId: 'APT002', roomNumber: 'C-101', landlordId: 'LL003', leaseStart: '2025-02-01', leaseEnd: '2026-07-31' },
+  { id: 'T005', name: '周小伟', phone: '15412345682', apartmentId: 'APT002', roomNumber: 'C-205', landlordId: 'LL003', leaseStart: '2025-04-01', leaseEnd: '2026-09-30' },
 ];
 
 export const mockBillingRules: BillingRule[] = [
@@ -89,19 +89,20 @@ export const mockBills: BillItem[] = [
     tenantId: 'T001',
     tenantName: '刘小明',
     roomNumber: 'A-101',
+    landlordId: 'LL001',
     periodStart: '2026-06-01',
     periodEnd: '2026-06-30',
     rentAmount: 4500,
     discountResult: {
       originalAmount: 4500,
-      totalDiscount: 580,
-      finalAmount: 3920,
+      totalDiscount: 1000,
+      finalAmount: 3500,
       negFloorApplied: false,
       steps: [
-        { ruleId: 'DR002', ruleName: '满4000减300', type: 'FULL_REDUCTION', amountBefore: 4500, discountAmount: 300, amountAfter: 4200 },
-        { ruleId: 'DR001', ruleName: '新客优惠券', type: 'COUPON', amountBefore: 4200, discountAmount: 200, amountAfter: 4000 },
-        { ruleId: 'DR003', ruleName: '长租折扣9折', type: 'PERCENTAGE', amountBefore: 4000, discountAmount: 400, amountAfter: 3600 },
-        { ruleId: 'DR004', ruleName: '续租固定优惠', type: 'FIXED', amountBefore: 3600, discountAmount: 100, amountAfter: 3500 },
+        { ruleId: 'DR002', ruleName: '满4000减300', type: 'FULL_REDUCTION', amountBefore: 4500, discountAmount: 300, amountAfterStep: 4200, amountAfter: 4200 },
+        { ruleId: 'DR001', ruleName: '新客优惠券', type: 'COUPON', amountBefore: 4200, discountAmount: 200, amountAfterStep: 4000, amountAfter: 4000 },
+        { ruleId: 'DR003', ruleName: '长租折扣9折', type: 'PERCENTAGE', amountBefore: 4000, discountAmount: 400, amountAfterStep: 3600, amountAfter: 3600 },
+        { ruleId: 'DR004', ruleName: '续租固定优惠', type: 'FIXED', amountBefore: 3600, discountAmount: 100, amountAfterStep: 3500, amountAfter: 3500 },
       ],
     },
     lateFee: 0,
@@ -116,6 +117,7 @@ export const mockBills: BillItem[] = [
     tenantId: 'T002',
     tenantName: '陈小红',
     roomNumber: 'A-202',
+    landlordId: 'LL001',
     periodStart: '2026-06-01',
     periodEnd: '2026-06-30',
     rentAmount: 4500,
@@ -125,7 +127,7 @@ export const mockBills: BillItem[] = [
       finalAmount: 4200,
       negFloorApplied: false,
       steps: [
-        { ruleId: 'DR002', ruleName: '满4000减300', type: 'FULL_REDUCTION', amountBefore: 4500, discountAmount: 300, amountAfter: 4200 },
+        { ruleId: 'DR002', ruleName: '满4000减300', type: 'FULL_REDUCTION', amountBefore: 4500, discountAmount: 300, amountAfterStep: 4200, amountAfter: 4200 },
       ],
     },
     lateFee: 0,
@@ -139,6 +141,7 @@ export const mockBills: BillItem[] = [
     tenantId: 'T003',
     tenantName: '赵小刚',
     roomNumber: 'B-301',
+    landlordId: 'LL002',
     periodStart: '2026-06-01',
     periodEnd: '2026-06-30',
     rentAmount: 4500,
@@ -160,6 +163,7 @@ export const mockBills: BillItem[] = [
     tenantId: 'T004',
     tenantName: '孙小丽',
     roomNumber: 'C-101',
+    landlordId: 'LL003',
     periodStart: '2026-06-01',
     periodEnd: '2026-06-30',
     rentAmount: 5800,
@@ -169,7 +173,7 @@ export const mockBills: BillItem[] = [
       finalAmount: 5500,
       negFloorApplied: false,
       steps: [
-        { ruleId: 'DR002', ruleName: '满4000减300', type: 'FULL_REDUCTION', amountBefore: 5800, discountAmount: 300, amountAfter: 5500 },
+        { ruleId: 'DR002', ruleName: '满4000减300', type: 'FULL_REDUCTION', amountBefore: 5800, discountAmount: 300, amountAfterStep: 5500, amountAfter: 5500 },
       ],
     },
     lateFee: 0,
@@ -184,6 +188,7 @@ export const mockBills: BillItem[] = [
     tenantId: 'T005',
     tenantName: '周小伟',
     roomNumber: 'C-205',
+    landlordId: 'LL003',
     periodStart: '2026-06-01',
     periodEnd: '2026-06-30',
     rentAmount: 5800,

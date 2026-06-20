@@ -1,6 +1,5 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Badge } from 'antd-mobile';
 
 const tabs = [
   { key: '/', label: '首页', icon: '🏠' },
@@ -8,6 +7,7 @@ const tabs = [
   { key: '/bills', label: '账单', icon: '📋' },
   { key: '/commission', label: '抽成', icon: '💰' },
   { key: '/settlement', label: '结算', icon: '📊' },
+  { key: '/deposit', label: '押金', icon: '🔐' },
 ];
 
 const TabBar: React.FC = () => {

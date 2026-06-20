@@ -20,7 +20,7 @@ const typeColor: Record<DiscountType, string> = {
 };
 
 const DiscountConfig: React.FC = () => {
-  const { discountRules, discountOrder, toggleDiscountRule, updateDiscountOrder, addDiscountRule, updateDiscountRule } = useRentStore();
+  const { discountRules, discountOrder, toggleDiscountRule, updateDiscountOrder, addDiscountRule } = useRentStore();
   const [previewAmount, setPreviewAmount] = useState<number>(4500);
   const [dragOrder, setDragOrder] = useState<string[]>(discountOrder.order.length > 0 ? discountOrder.order : discountRules.map((r) => r.id));
   const [showAdd, setShowAdd] = useState(false);

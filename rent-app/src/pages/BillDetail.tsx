@@ -29,15 +29,16 @@ const typeLabel: Record<DiscountType, string> = {
 const BillDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { bills, updateBillStatus, commissionRules, commissionSplits } = useRentStore();
+  const { bills, updateBillStatus, commissionRules, getCommissionSplits } = useRentStore();
 
   const bill = bills.find((b) => b.id === id);
   if (!bill) {
     return <div className="empty-state">账单不存在</div>;
   }
 
-  const commissionRule = commissionRules.find((cr) => cr.apartmentId === bill.apartmentId);
-  const split = commissionSplits.find((s) => s.billId === bill.id);
+  const commissionRule = commissionRules.find((cr) => cr.apartmentId === bill.apartmentId && cr.landlordId === bill.landlordId);
+  const splits = getCommissionSplits(bill.apartmentId);
+  const split = splits.find((s) => s.billId === bill.id);
 
   const handlePay = () => {
     updateBillStatus(bill.id, 'PAID');

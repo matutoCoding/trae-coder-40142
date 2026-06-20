@@ -1,10 +1,7 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { Card, Tag, Button, Dialog } from 'antd-mobile';
 import { useRentStore } from '../store/useStore';
-import { reconcilePeriod, settlePeriod } from '../core/reconciliator';
-import { splitCommission, aggregateIncomeByParty } from '../core/commissionSplitter';
 import { formatMoney } from '../core/reconciliator';
-import type { CommissionSplit, SettlementAdjustment } from '../core/types';
 
 const periodStatusLabel: Record<string, { label: string; color: string }> = {
   OPEN: { label: '待对账', color: '#1677ff' },
@@ -16,11 +13,9 @@ const Settlement: React.FC = () => {
   const {
     settlementPeriods,
     settlementRecords,
-    bills,
-    commissionRules,
     selectedApartmentId,
-    updateSettlementPeriod,
-    addSettlementRecord,
+    reconcilePeriodAction,
+    settlePeriodAction,
   } = useRentStore();
 
   const apartmentPeriods = settlementPeriods.filter(
@@ -32,39 +27,16 @@ const Settlement: React.FC = () => {
   );
 
   const handleReconcile = (periodId: string) => {
-    const period = settlementPeriods.find((p) => p.id === periodId);
-    if (!period) return;
-
-    const periodBills = bills.filter(
-      (b) => b.apartmentId === period.apartmentId && b.periodStart.startsWith(period.yearMonth)
-    );
-
-    const splits: CommissionSplit[] = [];
-    for (const bill of periodBills) {
-      const rule = commissionRules.find((cr) => cr.apartmentId === bill.apartmentId);
-      if (rule) {
-        splits.push(splitCommission(bill, rule));
-      }
-    }
-
-    const adjustments = new Map<string, SettlementAdjustment[]>();
-    const records = reconcilePeriod(period, splits, adjustments);
-
-    for (const record of records) {
-      addSettlementRecord(record);
-    }
-    updateSettlementPeriod(periodId, { status: 'RECONCILING' });
-
-    Dialog.alert({
-      content: `对账完成，共生成 ${records.length} 条结算记录`,
-    });
+    reconcilePeriodAction(periodId);
+    Dialog.alert({ content: '对账完成，已生成结算记录' });
   };
 
   const handleSettle = (periodId: string) => {
     Dialog.confirm({
       content: '确认完成结算？结算后不可修改',
       onConfirm: () => {
-        updateSettlementPeriod(periodId, { status: 'SETTLED' });
+        settlePeriodAction(periodId);
+        Dialog.alert({ content: '结算完成，已记录到历史' });
       },
     });
   };
@@ -122,6 +94,12 @@ const Settlement: React.FC = () => {
                       <span>应结金额</span>
                       <span className="final-amount">{formatMoney(record.finalAmount)}</span>
                     </div>
+                    {record.settledAt && (
+                      <div className="record-row settled-time-row">
+                        <span>结算时间</span>
+                        <span className="settled-time">{record.settledAt}</span>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -161,11 +139,25 @@ const Settlement: React.FC = () => {
           <Card key={record.id} className="history-card">
             <div className="record-header">
               <span className="record-party">{record.partyName}</span>
-              <span className="settled-time">{record.settledAt}</span>
+              <Tag
+                color={record.partyType === 'APARTMENT' ? '#1677ff' : '#722ed1'}
+                fill="outline"
+                style={{ fontSize: 10 }}
+              >
+                {record.partyType === 'APARTMENT' ? '公寓方' : '房东'}
+              </Tag>
+            </div>
+            <div className="record-row">
+              <span>总收入</span>
+              <span>{formatMoney(record.totalIncome)}</span>
             </div>
             <div className="record-row total">
-              <span>结算金额</span>
+              <span>应结金额</span>
               <span className="final-amount">{formatMoney(record.finalAmount)}</span>
+            </div>
+            <div className="record-row">
+              <span>结算时间</span>
+              <span className="settled-time">{record.settledAt}</span>
             </div>
           </Card>
         ))}
