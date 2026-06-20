@@ -1,0 +1,289 @@
+import type {
+  Apartment,
+  Tenant,
+  Landlord,
+  BillingRule,
+  DiscountRule,
+  DiscountOrderConfig,
+  CommissionRule,
+  BillItem,
+  DepositRecord,
+  SettlementPeriod,
+  SettlementRecord,
+} from './types';
+
+export const mockApartments: Apartment[] = [
+  { id: 'APT001', name: '阳光长租公寓', address: '北京市朝阳区建国路88号', roomCount: 120 },
+  { id: 'APT002', name: '星河湾公寓', address: '上海市浦东新区陆家嘴环路100号', roomCount: 80 },
+];
+
+export const mockLandlords: Landlord[] = [
+  { id: 'LL001', name: '张建国', phone: '13800138001', apartmentIds: ['APT001', 'APT002'] },
+  { id: 'LL002', name: '李明辉', phone: '13900139002', apartmentIds: ['APT001'] },
+  { id: 'LL003', name: '王秀英', phone: '13700137003', apartmentIds: ['APT002'] },
+];
+
+export const mockTenants: Tenant[] = [
+  { id: 'T001', name: '刘小明', phone: '15012345678', apartmentId: 'APT001', roomNumber: 'A-101', leaseStart: '2025-01-01', leaseEnd: '2026-12-31' },
+  { id: 'T002', name: '陈小红', phone: '15112345679', apartmentId: 'APT001', roomNumber: 'A-202', leaseStart: '2025-03-01', leaseEnd: '2026-06-30' },
+  { id: 'T003', name: '赵小刚', phone: '15212345680', apartmentId: 'APT001', roomNumber: 'B-301', leaseStart: '2025-06-01', leaseEnd: '2027-05-31' },
+  { id: 'T004', name: '孙小丽', phone: '15312345681', apartmentId: 'APT002', roomNumber: 'C-101', leaseStart: '2025-02-01', leaseEnd: '2026-07-31' },
+  { id: 'T005', name: '周小伟', phone: '15412345682', apartmentId: 'APT002', roomNumber: 'C-205', leaseStart: '2025-04-01', leaseEnd: '2026-09-30' },
+];
+
+export const mockBillingRules: BillingRule[] = [
+  { id: 'BR001', apartmentId: 'APT001', rentAmount: 4500, depositMonths: 1, paymentDay: 1, graceDays: 5, lateFeeRate: 0.0005 },
+  { id: 'BR002', apartmentId: 'APT002', rentAmount: 5800, depositMonths: 2, paymentDay: 5, graceDays: 3, lateFeeRate: 0.0008 },
+];
+
+export const mockDiscountRules: DiscountRule[] = [
+  {
+    id: 'DR001',
+    name: '新客优惠券',
+    type: 'COUPON',
+    priority: 1,
+    enabled: true,
+    config: { amount: 200, minSpend: 3000, validFrom: '2025-01-01', validTo: '2026-12-31' },
+  },
+  {
+    id: 'DR002',
+    name: '满4000减300',
+    type: 'FULL_REDUCTION',
+    priority: 2,
+    enabled: true,
+    config: { threshold: 4000, reduction: 300, stackable: true },
+  },
+  {
+    id: 'DR003',
+    name: '长租折扣9折',
+    type: 'PERCENTAGE',
+    priority: 3,
+    enabled: true,
+    config: { percent: 10, maxDiscount: 500, minSpend: 4000 },
+  },
+  {
+    id: 'DR004',
+    name: '续租固定优惠',
+    type: 'FIXED',
+    priority: 4,
+    enabled: true,
+    config: { amount: 100 },
+  },
+];
+
+export const mockDiscountOrder: DiscountOrderConfig = {
+  apartmentId: 'APT001',
+  order: ['DR002', 'DR001', 'DR003', 'DR004'],
+};
+
+export const mockCommissionRules: CommissionRule[] = [
+  { id: 'CR001', apartmentId: 'APT001', landlordId: 'LL001', landlordName: '张建国', apartmentShare: 0.15, landlordShare: 0.85, effectiveFrom: '2025-01-01' },
+  { id: 'CR002', apartmentId: 'APT001', landlordId: 'LL002', landlordName: '李明辉', apartmentShare: 0.20, landlordShare: 0.80, effectiveFrom: '2025-01-01' },
+  { id: 'CR003', apartmentId: 'APT002', landlordId: 'LL003', landlordName: '王秀英', apartmentShare: 0.18, landlordShare: 0.82, effectiveFrom: '2025-01-01' },
+];
+
+export const mockBills: BillItem[] = [
+  {
+    id: 'BIL202606010001',
+    apartmentId: 'APT001',
+    tenantId: 'T001',
+    tenantName: '刘小明',
+    roomNumber: 'A-101',
+    periodStart: '2026-06-01',
+    periodEnd: '2026-06-30',
+    rentAmount: 4500,
+    discountResult: {
+      originalAmount: 4500,
+      totalDiscount: 580,
+      finalAmount: 3920,
+      negFloorApplied: false,
+      steps: [
+        { ruleId: 'DR002', ruleName: '满4000减300', type: 'FULL_REDUCTION', amountBefore: 4500, discountAmount: 300, amountAfter: 4200 },
+        { ruleId: 'DR001', ruleName: '新客优惠券', type: 'COUPON', amountBefore: 4200, discountAmount: 200, amountAfter: 4000 },
+        { ruleId: 'DR003', ruleName: '长租折扣9折', type: 'PERCENTAGE', amountBefore: 4000, discountAmount: 400, amountAfter: 3600 },
+        { ruleId: 'DR004', ruleName: '续租固定优惠', type: 'FIXED', amountBefore: 3600, discountAmount: 100, amountAfter: 3500 },
+      ],
+    },
+    lateFee: 0,
+    totalAmount: 3500,
+    status: 'PAID',
+    createdAt: '2026-06-01 00:00:00',
+    paidAt: '2026-06-02 10:30:00',
+  },
+  {
+    id: 'BIL202606010002',
+    apartmentId: 'APT001',
+    tenantId: 'T002',
+    tenantName: '陈小红',
+    roomNumber: 'A-202',
+    periodStart: '2026-06-01',
+    periodEnd: '2026-06-30',
+    rentAmount: 4500,
+    discountResult: {
+      originalAmount: 4500,
+      totalDiscount: 300,
+      finalAmount: 4200,
+      negFloorApplied: false,
+      steps: [
+        { ruleId: 'DR002', ruleName: '满4000减300', type: 'FULL_REDUCTION', amountBefore: 4500, discountAmount: 300, amountAfter: 4200 },
+      ],
+    },
+    lateFee: 0,
+    totalAmount: 4200,
+    status: 'PENDING',
+    createdAt: '2026-06-01 00:00:00',
+  },
+  {
+    id: 'BIL202606010003',
+    apartmentId: 'APT001',
+    tenantId: 'T003',
+    tenantName: '赵小刚',
+    roomNumber: 'B-301',
+    periodStart: '2026-06-01',
+    periodEnd: '2026-06-30',
+    rentAmount: 4500,
+    discountResult: {
+      originalAmount: 4500,
+      totalDiscount: 0,
+      finalAmount: 4500,
+      negFloorApplied: false,
+      steps: [],
+    },
+    lateFee: 135,
+    totalAmount: 4635,
+    status: 'OVERDUE',
+    createdAt: '2026-06-01 00:00:00',
+  },
+  {
+    id: 'BIL202606010004',
+    apartmentId: 'APT002',
+    tenantId: 'T004',
+    tenantName: '孙小丽',
+    roomNumber: 'C-101',
+    periodStart: '2026-06-01',
+    periodEnd: '2026-06-30',
+    rentAmount: 5800,
+    discountResult: {
+      originalAmount: 5800,
+      totalDiscount: 300,
+      finalAmount: 5500,
+      negFloorApplied: false,
+      steps: [
+        { ruleId: 'DR002', ruleName: '满4000减300', type: 'FULL_REDUCTION', amountBefore: 5800, discountAmount: 300, amountAfter: 5500 },
+      ],
+    },
+    lateFee: 0,
+    totalAmount: 5500,
+    status: 'PAID',
+    createdAt: '2026-06-01 00:00:00',
+    paidAt: '2026-06-05 14:20:00',
+  },
+  {
+    id: 'BIL202606010005',
+    apartmentId: 'APT002',
+    tenantId: 'T005',
+    tenantName: '周小伟',
+    roomNumber: 'C-205',
+    periodStart: '2026-06-01',
+    periodEnd: '2026-06-30',
+    rentAmount: 5800,
+    discountResult: {
+      originalAmount: 5800,
+      totalDiscount: 0,
+      finalAmount: 5800,
+      negFloorApplied: false,
+      steps: [],
+    },
+    lateFee: 0,
+    totalAmount: 5800,
+    status: 'PENDING',
+    createdAt: '2026-06-01 00:00:00',
+  },
+];
+
+export const mockDeposits: DepositRecord[] = [
+  {
+    id: 'DEP202601010001',
+    apartmentId: 'APT001',
+    tenantId: 'T001',
+    tenantName: '刘小明',
+    roomNumber: 'A-101',
+    depositAmount: 4500,
+    deductions: [],
+    refundAmount: 4500,
+    status: 'HELD',
+  },
+  {
+    id: 'DEP202601010002',
+    apartmentId: 'APT001',
+    tenantId: 'T002',
+    tenantName: '陈小红',
+    roomNumber: 'A-202',
+    depositAmount: 4500,
+    deductions: [{ reason: '墙面修复', amount: 800 }, { reason: '清洁费', amount: 200 }],
+    refundAmount: 3500,
+    status: 'PARTIAL_REFUND',
+  },
+];
+
+export const mockSettlementPeriods: SettlementPeriod[] = [
+  {
+    id: 'SP202605001',
+    apartmentId: 'APT001',
+    yearMonth: '2026-05',
+    startDate: '2026-05-01',
+    endDate: '2026-05-31',
+    status: 'SETTLED',
+  },
+  {
+    id: 'SP202606001',
+    apartmentId: 'APT001',
+    yearMonth: '2026-06',
+    startDate: '2026-06-01',
+    endDate: '2026-06-30',
+    status: 'OPEN',
+  },
+  {
+    id: 'SP202605002',
+    apartmentId: 'APT002',
+    yearMonth: '2026-05',
+    startDate: '2026-05-01',
+    endDate: '2026-05-31',
+    status: 'SETTLED',
+  },
+  {
+    id: 'SP202606002',
+    apartmentId: 'APT002',
+    yearMonth: '2026-06',
+    startDate: '2026-06-01',
+    endDate: '2026-06-30',
+    status: 'RECONCILING',
+  },
+];
+
+export const mockSettlementRecords: SettlementRecord[] = [
+  {
+    id: 'SR202605001',
+    periodId: 'SP202605001',
+    apartmentId: 'APT001',
+    partyId: 'APT_APT001',
+    partyName: '公寓方',
+    partyType: 'APARTMENT',
+    totalIncome: 2475,
+    adjustments: [],
+    finalAmount: 2475,
+    settledAt: '2026-06-01 10:00:00',
+  },
+  {
+    id: 'SR202605002',
+    periodId: 'SP202605001',
+    apartmentId: 'APT001',
+    partyId: 'LL_LL001',
+    partyName: '张建国',
+    partyType: 'LANDLORD',
+    totalIncome: 11475,
+    adjustments: [{ reason: '维修补贴', amount: 500, type: 'CREDIT' }],
+    finalAmount: 11975,
+    settledAt: '2026-06-01 10:00:00',
+  },
+];
