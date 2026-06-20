@@ -171,10 +171,12 @@ export interface SettlementRecord {
   partyType: 'APARTMENT' | 'LANDLORD';
   totalIncome: number;
   billCount: number;
+  billIds: string[];
   adjustments: SettlementAdjustment[];
   finalAmount: number;
   settledAt?: string;
   isSupplementary?: boolean;
+  supplementaryBatch?: number;
 }
 
 export interface SettlementAdjustment {

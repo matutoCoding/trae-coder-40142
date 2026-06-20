@@ -322,7 +322,7 @@ export const useRentStore = create<RentStore>()(
         if (!period) return;
 
         const periodBills = state.bills.filter(
-          (b) => b.apartmentId === period.apartmentId && b.periodStart.startsWith(period.yearMonth) && b.status === 'PAID'
+          (b) => b.apartmentId === period.apartmentId && b.periodStart.startsWith(period.yearMonth) && (b.status === 'PAID' || b.status === 'SETTLED_BY_DEPOSIT')
         );
 
         const splits: CommissionSplit[] = [];
@@ -439,8 +439,16 @@ export const useRentStore = create<RentStore>()(
         if (!period || period.status !== 'SETTLED') return;
 
         const settledAtTime = state.settlementRecords.find(
-          (r) => r.periodId === periodId && r.settledAt
+          (r) => r.periodId === periodId && r.settledAt && !r.isSupplementary
         )?.settledAt;
+
+        if (!settledAtTime) return;
+
+        const allSettledBillIds = new Set(
+          state.settlementRecords
+            .filter((r) => r.periodId === periodId)
+            .flatMap((r) => r.billIds ?? [])
+        );
 
         const newlyPaidBills = state.bills.filter(
           (b) =>
@@ -448,8 +456,8 @@ export const useRentStore = create<RentStore>()(
             b.periodStart.startsWith(period.yearMonth) &&
             (b.status === 'PAID' || b.status === 'SETTLED_BY_DEPOSIT') &&
             b.paidAt &&
-            settledAtTime &&
-            dayjs(b.paidAt).isAfter(dayjs(settledAtTime))
+            dayjs(b.paidAt).isAfter(dayjs(settledAtTime)) &&
+            !allSettledBillIds.has(b.id)
         );
 
         if (newlyPaidBills.length === 0) return;
@@ -467,14 +475,17 @@ export const useRentStore = create<RentStore>()(
         const adjustments = new Map<string, SettlementAdjustment[]>();
         const supplementaryRecords = reconcilePeriod(period, splits, adjustments);
 
-        const markedRecords = supplementaryRecords.map((r) => ({
-          ...r,
-          isSupplementary: true as const,
-        }));
+        const existingSuppCount = state.settlementRecords.filter(
+          (r) => r.periodId === periodId && r.isSupplementary
+        ).length;
+
+        const nextBatch = existingSuppCount + 1;
 
         const now = dayjs().format('YYYY-MM-DD HH:mm:ss');
-        const settledSuppRecords = markedRecords.map((r) => ({
+        const settledSuppRecords = supplementaryRecords.map((r) => ({
           ...r,
+          isSupplementary: true as const,
+          supplementaryBatch: nextBatch,
           settledAt: now,
         }));
 

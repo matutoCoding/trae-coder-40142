@@ -32,27 +32,30 @@ export function reconcilePeriod(
   splits: CommissionSplit[],
   adjustments: Map<string, SettlementAdjustment[]>
 ): SettlementRecord[] {
-  const apartmentAgg = new Map<string, { totalIncome: number; billCount: number }>();
-  const landlordAgg = new Map<string, { name: string; income: number; billCount: number }>();
+  const apartmentAgg = new Map<string, { totalIncome: number; billCount: number; billIds: string[] }>();
+  const landlordAgg = new Map<string, { name: string; income: number; billCount: number; billIds: string[] }>();
 
   for (const split of splits) {
     if (split.apartmentId !== period.apartmentId) continue;
 
-    const apt = apartmentAgg.get(split.apartmentId) ?? { totalIncome: 0, billCount: 0 };
+    const apt = apartmentAgg.get(split.apartmentId) ?? { totalIncome: 0, billCount: 0, billIds: [] };
     apartmentAgg.set(split.apartmentId, {
       totalIncome: apt.totalIncome + split.apartmentIncome,
       billCount: apt.billCount + 1,
+      billIds: [...apt.billIds, split.billId],
     });
 
     const existing = landlordAgg.get(split.landlordId);
     if (existing) {
       existing.income += split.landlordIncome;
       existing.billCount += 1;
+      existing.billIds.push(split.billId);
     } else {
       landlordAgg.set(split.landlordId, {
         name: split.landlordName,
         income: split.landlordIncome,
         billCount: 1,
+        billIds: [split.billId],
       });
     }
   }
@@ -76,6 +79,7 @@ export function reconcilePeriod(
       partyType: 'APARTMENT',
       totalIncome: Math.round(agg.totalIncome * 100) / 100,
       billCount: agg.billCount,
+      billIds: agg.billIds,
       adjustments: aptAdjustments,
       finalAmount,
       settledAt: period.status === 'SETTLED' ? now : undefined,
@@ -98,6 +102,7 @@ export function reconcilePeriod(
       partyType: 'LANDLORD',
       totalIncome: Math.round(data.income * 100) / 100,
       billCount: data.billCount,
+      billIds: data.billIds,
       adjustments: llAdjustments,
       finalAmount,
       settledAt: period.status === 'SETTLED' ? now : undefined,

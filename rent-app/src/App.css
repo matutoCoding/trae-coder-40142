@@ -1027,3 +1027,103 @@
 .ledger-entry-amount.positive { color: var(--success); }
 .ledger-entry-amount.negative { color: var(--danger); }
 
+.settlement-record.clickable {
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.settlement-record.clickable:hover {
+  background: #f5f5f5;
+}
+
+.settlement-record.clickable:active {
+  background: #eee;
+}
+
+.page-settlement-detail {
+  padding-bottom: 20px;
+}
+
+.settlement-detail-header {
+  padding: 16px;
+}
+
+.detail-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.detail-period {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.detail-party {
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.detail-badge {
+  flex-shrink: 0;
+}
+
+.detail-card {
+  border-radius: 12px;
+  margin-bottom: 12px;
+}
+
+.detail-section-title {
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  font-size: 13px;
+}
+
+.detail-row.adjustment { color: var(--text-secondary); font-size: 12px; }
+.detail-row.total { font-weight: 600; border-top: 1px solid var(--border); margin-top: 4px; padding-top: 8px; }
+
+.credit { color: var(--success); }
+.debit { color: var(--danger); }
+
+.bill-in-settlement {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+
+.bill-in-settlement:last-child { border-bottom: none; }
+
+.bis-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.bis-tenant {
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.bis-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.bis-row.source { color: var(--primary); }
+.bis-row.split { padding-left: 12px; }
+.bis-row.time { font-size: 11px; opacity: 0.7; }
+

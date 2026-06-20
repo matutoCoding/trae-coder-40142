@@ -34,12 +34,13 @@ interface LedgerEntry {
   detail: string;
   billId?: string;
   depositId?: string;
+  settlementRecordId?: string;
 }
 
 const TenantLedger: React.FC = () => {
   const { tenantId } = useParams();
   const navigate = useNavigate();
-  const { tenants, bills, deposits, settlementRecords, landlords } = useRentStore();
+  const { tenants, bills, deposits, settlementRecords, settlementPeriods, landlords } = useRentStore();
 
   const tenant = tenants.find((t) => t.id === tenantId);
 
@@ -48,8 +49,10 @@ const TenantLedger: React.FC = () => {
 
     const result: LedgerEntry[] = [];
 
+    const tenantBillIds = new Set<string>();
     const tenantBills = bills.filter((b) => b.tenantId === tenantId);
     for (const bill of tenantBills) {
+      tenantBillIds.add(bill.id);
       result.push({
         id: bill.id,
         type: 'BILL',
@@ -88,25 +91,37 @@ const TenantLedger: React.FC = () => {
 
     const tenantLandlordId = tenant.landlordId;
     const landlordName = landlords.find((l) => l.id === tenantLandlordId)?.name ?? '';
-    const landlordRecords = settlementRecords.filter(
-      (r) => r.partyId === `LL_${tenantLandlordId}` && r.settledAt
-    );
-    for (const rec of landlordRecords) {
+
+    for (const rec of settlementRecords) {
+      if (!rec.settledAt) continue;
+
+      const includedTenantBills = (rec.billIds ?? []).filter((bid) => tenantBillIds.has(bid));
+      if (includedTenantBills.length === 0) continue;
+
+      const period = settlementPeriods.find((p) => p.id === rec.periodId);
+      const periodMonth = period?.yearMonth ?? '';
+
+      if (rec.partyType === 'LANDLORD') {
+        const recLandlordId = rec.partyId.replace('LL_', '');
+        if (recLandlordId !== tenantLandlordId) continue;
+      }
+
       result.push({
         id: rec.id,
         type: 'SETTLEMENT',
-        date: rec.settledAt ?? '',
-        month: '',
-        description: `结算到账${rec.isSupplementary ? '（补结算）' : ''}`,
+        date: rec.settledAt,
+        month: periodMonth,
+        description: `结算到账${rec.isSupplementary ? `（补结算第${rec.supplementaryBatch ?? 1}次）` : ''}`,
         amount: rec.finalAmount,
         status: 'SETTLED',
-        detail: `${landlordName} · ${rec.billCount}笔 · ${formatMoney(rec.finalAmount)}`,
+        detail: `${periodMonth} · ${rec.partyType === 'LANDLORD' ? landlordName : '公寓方'} · ${includedTenantBills.length}笔 · ${formatMoney(rec.finalAmount)}`,
+        settlementRecordId: rec.id,
       });
     }
 
     result.sort((a, b) => dayjs(b.date).valueOf() - dayjs(a.date).valueOf());
     return result;
-  }, [tenant, bills, deposits, settlementRecords, landlords]);
+  }, [tenant, bills, deposits, settlementRecords, settlementPeriods, landlords]);
 
   if (!tenant) {
     return (
@@ -159,9 +174,9 @@ const TenantLedger: React.FC = () => {
       {entries.length === 0 && <div className="empty-state">暂无台账记录</div>}
       {entries.map((entry) => {
         const typeIcon: Record<string, string> = {
-          BILL: '📄',
-          DEPOSIT_DEDUCTION: '🏠',
-          SETTLEMENT: '💰',
+          BILL: '\u{1F4C4}',
+          DEPOSIT_DEDUCTION: '\u{1F3E0}',
+          SETTLEMENT: '\u{1F4B0}',
         };
         return (
           <Card
@@ -169,6 +184,7 @@ const TenantLedger: React.FC = () => {
             className="ledger-card"
             onClick={() => {
               if (entry.billId) navigate(`/bills/${entry.billId}`);
+              else if (entry.settlementRecordId) navigate(`/settlement-detail/${entry.settlementRecordId}`);
             }}
           >
             <div className="ledger-entry">
@@ -191,6 +207,15 @@ const TenantLedger: React.FC = () => {
                     style={{ fontSize: 10, marginTop: 4 }}
                   >
                     {statusLabel[entry.status as BillStatus] ?? entry.status}
+                  </Tag>
+                )}
+                {entry.type === 'SETTLEMENT' && (
+                  <Tag
+                    color={entry.status === 'SETTLED' ? '#00b578' : '#ff8f1f'}
+                    fill="outline"
+                    style={{ fontSize: 10, marginTop: 4 }}
+                  >
+                    {entry.detail.includes('补结算') ? '补结算' : '已结算'}
                   </Tag>
                 )}
               </div>

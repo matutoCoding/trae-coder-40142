@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Card, Tag, Button, Dialog, Picker, Toast } from 'antd-mobile';
+import { useNavigate } from 'react-router-dom';
 import { useRentStore } from '../store/useStore';
 import { formatMoney } from '../core/reconciliator';
 import type { SettlementPeriod, SettlementRecord } from '../core/types';
@@ -12,6 +13,7 @@ const periodStatusLabel: Record<string, { label: string; color: string }> = {
 };
 
 const Settlement: React.FC = () => {
+  const navigate = useNavigate();
   const {
     selectedApartmentId,
     setSelectedApartment,
@@ -82,15 +84,19 @@ const Settlement: React.FC = () => {
   };
 
   const hasNewPayments = (period: SettlementPeriod, periodRecords: SettlementRecord[]) => {
-    const settledAtTime = periodRecords.find((r) => r.settledAt)?.settledAt;
+    const settledAtTime = periodRecords.find((r) => r.settledAt && !r.isSupplementary)?.settledAt;
     if (!settledAtTime) return false;
+
+    const allSettledBillIds = new Set(periodRecords.flatMap((r) => r.billIds ?? []));
+
     return bills.some(
       (b) =>
         b.apartmentId === period.apartmentId &&
         b.periodStart.startsWith(period.yearMonth) &&
         (b.status === 'PAID' || b.status === 'SETTLED_BY_DEPOSIT') &&
         b.paidAt &&
-        dayjs(b.paidAt).isAfter(dayjs(settledAtTime))
+        dayjs(b.paidAt).isAfter(dayjs(settledAtTime)) &&
+        !allSettledBillIds.has(b.id)
     );
   };
 
@@ -225,12 +231,16 @@ const Settlement: React.FC = () => {
             <Tag color="#00b578" fill="outline">已结算</Tag>
           </div>
           {records.map((record) => (
-            <div key={record.id} className="settlement-record">
+            <div
+              key={record.id}
+              className="settlement-record clickable"
+              onClick={() => navigate(`/settlement-detail/${record.id}`)}
+            >
               <div className="record-header">
                 <span className="record-party">{record.partyName}</span>
                 <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
                   {record.isSupplementary && (
-                    <Tag color="#ff8f1f" fill="outline" style={{ fontSize: 10 }}>补结算</Tag>
+                    <Tag color="#ff8f1f" fill="outline" style={{ fontSize: 10 }}>补结算第{record.supplementaryBatch ?? 1}次</Tag>
                   )}
                   <Tag
                     color={record.partyType === 'APARTMENT' ? '#1677ff' : '#722ed1'}

@@ -7,6 +7,7 @@ import BillList from './pages/BillList';
 import BillDetail from './pages/BillDetail';
 import Commission from './pages/Commission';
 import Settlement from './pages/Settlement';
+import SettlementDetail from './pages/SettlementDetail';
 import Deposit from './pages/Deposit';
 import TenantLedger from './pages/TenantLedger';
 import './App.css';
@@ -31,6 +32,7 @@ function App() {
           <Route path="/bills/:id" element={<BillDetail />} />
           <Route path="/commission" element={<Commission />} />
           <Route path="/settlement" element={<Settlement />} />
+          <Route path="/settlement-detail/:recordId" element={<SettlementDetail />} />
           <Route path="/deposit" element={<Deposit />} />
           <Route path="/tenant/:tenantId" element={<TenantLedger />} />
         </Route>
