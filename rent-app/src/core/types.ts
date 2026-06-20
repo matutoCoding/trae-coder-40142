@@ -55,7 +55,7 @@ export interface DiscountCalcResult {
   negFloorApplied: boolean;
 }
 
-export type BillStatus = 'PENDING' | 'PAID' | 'OVERDUE' | 'CANCELLED';
+export type BillStatus = 'PENDING' | 'PAID' | 'OVERDUE' | 'CANCELLED' | 'SETTLED_BY_DEPOSIT';
 
 export type PaymentMethod = 'CASH' | 'BANK_TRANSFER' | 'WECHAT' | 'ALIPAY' | 'CARD';
 
@@ -102,6 +102,7 @@ export interface BillItem {
   createdAt: string;
   paidAt?: string;
   paymentInfo?: PaymentInfo;
+  settledByDepositId?: string;
 }
 
 export type DepositStatus = 'HELD' | 'PARTIAL_REFUND' | 'FULL_REFUND' | 'FORFEITED';
@@ -173,6 +174,7 @@ export interface SettlementRecord {
   adjustments: SettlementAdjustment[];
   finalAmount: number;
   settledAt?: string;
+  isSupplementary?: boolean;
 }
 
 export interface SettlementAdjustment {

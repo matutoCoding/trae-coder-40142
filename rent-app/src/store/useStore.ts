@@ -83,6 +83,7 @@ interface RentStore {
   getLandlordIncomeSummary: (apartmentId: string) => { landlordId: string; landlordName: string; income: number }[];
   getUnpaidBills: (tenantId: string) => BillItem[];
   getSettlementPeriodsByFilter: (apartmentId: string, filterMonth?: string, filterLandlordId?: string) => { period: SettlementPeriod; records: SettlementRecord[] }[];
+  reconcileSupplementaryAction: (periodId: string) => void;
 }
 
 const PERSIST_KEY = 'rent_app_store_v1';
@@ -264,8 +265,14 @@ export const useRentStore = create<RentStore>()(
           processRemark: remark,
         };
 
+        const now = dayjs().format('YYYY-MM-DD HH:mm:ss');
         set((state) => ({
           deposits: state.deposits.map((d) => (d.id === depositId ? updated : d)),
+          bills: state.bills.map((b) =>
+            unpaidBillIds.includes(b.id)
+              ? { ...b, status: 'SETTLED_BY_DEPOSIT' as const, paidAt: now, settledByDepositId: depositId }
+              : b
+          ),
         }));
 
         return updated;
@@ -424,6 +431,56 @@ export const useRentStore = create<RentStore>()(
           }
           return { period, records };
         });
+      },
+
+      reconcileSupplementaryAction: (periodId) => {
+        const state = get();
+        const period = state.settlementPeriods.find((p) => p.id === periodId);
+        if (!period || period.status !== 'SETTLED') return;
+
+        const settledAtTime = state.settlementRecords.find(
+          (r) => r.periodId === periodId && r.settledAt
+        )?.settledAt;
+
+        const newlyPaidBills = state.bills.filter(
+          (b) =>
+            b.apartmentId === period.apartmentId &&
+            b.periodStart.startsWith(period.yearMonth) &&
+            (b.status === 'PAID' || b.status === 'SETTLED_BY_DEPOSIT') &&
+            b.paidAt &&
+            settledAtTime &&
+            dayjs(b.paidAt).isAfter(dayjs(settledAtTime))
+        );
+
+        if (newlyPaidBills.length === 0) return;
+
+        const splits: CommissionSplit[] = [];
+        for (const bill of newlyPaidBills) {
+          const rule = state.commissionRules.find(
+            (cr) => cr.apartmentId === bill.apartmentId && cr.landlordId === bill.landlordId
+          );
+          if (rule) {
+            splits.push(splitCommission(bill, rule));
+          }
+        }
+
+        const adjustments = new Map<string, SettlementAdjustment[]>();
+        const supplementaryRecords = reconcilePeriod(period, splits, adjustments);
+
+        const markedRecords = supplementaryRecords.map((r) => ({
+          ...r,
+          isSupplementary: true as const,
+        }));
+
+        const now = dayjs().format('YYYY-MM-DD HH:mm:ss');
+        const settledSuppRecords = markedRecords.map((r) => ({
+          ...r,
+          settledAt: now,
+        }));
+
+        set((state) => ({
+          settlementRecords: [...state.settlementRecords, ...settledSuppRecords],
+        }));
       },
     }),
     {

@@ -11,6 +11,7 @@ const statusColor: Record<string, string> = {
   PAID: '#00b578',
   OVERDUE: '#ff3141',
   CANCELLED: '#ccc',
+  SETTLED_BY_DEPOSIT: '#722ed1',
 };
 
 const statusLabel: Record<string, string> = {
@@ -18,6 +19,7 @@ const statusLabel: Record<string, string> = {
   PAID: '已支付',
   OVERDUE: '逾期',
   CANCELLED: '已取消',
+  SETTLED_BY_DEPOSIT: '押金抵扣',
 };
 
 const Dashboard: React.FC = () => {
@@ -26,7 +28,7 @@ const Dashboard: React.FC = () => {
 
   const currentBills = bills.filter((b) => b.apartmentId === selectedApartmentId);
   const totalRent = currentBills.reduce((s, b) => s + b.totalAmount, 0);
-  const paidBills = currentBills.filter((b) => b.status === 'PAID');
+  const paidBills = currentBills.filter((b) => b.status === 'PAID' || b.status === 'SETTLED_BY_DEPOSIT');
   const paidRent = paidBills.reduce((s, b) => s + b.totalAmount, 0);
   const pendingBills = currentBills.filter((b) => b.status === 'PENDING');
   const overdueBills = currentBills.filter((b) => b.status === 'OVERDUE');
@@ -105,7 +107,7 @@ const Dashboard: React.FC = () => {
                 <div className="flow-info">
                   <div className="flow-tenant">{bill.tenantName} · {bill.roomNumber}</div>
                   <div className="flow-meta">
-                    {bill.paymentInfo ? PaymentMethodLabel[bill.paymentInfo.method] : ''}
+                    {bill.status === 'SETTLED_BY_DEPOSIT' ? '押金抵扣' : (bill.paymentInfo ? PaymentMethodLabel[bill.paymentInfo.method] : '')}
                     {bill.paidAt ? ` · ${bill.paidAt.slice(5, 16)}` : ''}
                   </div>
                 </div>
@@ -125,7 +127,7 @@ const Dashboard: React.FC = () => {
           return (
             <div key={t.id} className="tenant-item">
               <div className="tenant-info">
-                <div className="tenant-name">{t.name}</div>
+                <div className="tenant-name" style={{ cursor: 'pointer' }} onClick={() => navigate(`/tenant/${t.id}`)}>{t.name}</div>
                 <div className="tenant-room">{t.roomNumber}</div>
               </div>
               {tenantBill && (

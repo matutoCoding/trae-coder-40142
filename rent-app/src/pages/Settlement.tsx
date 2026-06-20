@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
-import { Card, Tag, Button, Dialog, Picker } from 'antd-mobile';
+import { Card, Tag, Button, Dialog, Picker, Toast } from 'antd-mobile';
 import { useRentStore } from '../store/useStore';
 import { formatMoney } from '../core/reconciliator';
+import type { SettlementPeriod, SettlementRecord } from '../core/types';
 import dayjs from 'dayjs';
 
 const periodStatusLabel: Record<string, { label: string; color: string }> = {
@@ -13,11 +14,14 @@ const periodStatusLabel: Record<string, { label: string; color: string }> = {
 const Settlement: React.FC = () => {
   const {
     selectedApartmentId,
+    setSelectedApartment,
     reconcilePeriodAction,
     settlePeriodAction,
     createPeriodForMonth,
+    reconcileSupplementaryAction,
     apartments,
     landlords,
+    bills,
     getSettlementPeriodsByFilter,
   } = useRentStore();
 
@@ -56,6 +60,7 @@ const Settlement: React.FC = () => {
     if (!result) {
       Dialog.alert({ content: '该公寓对应月份已有对账期，无需重复创建' });
     } else {
+      setSelectedApartment(newPeriodApt);
       Dialog.alert({ content: `已创建 ${newPeriodMonth} 对账期` });
       setShowCreate(false);
     }
@@ -74,6 +79,19 @@ const Settlement: React.FC = () => {
         Dialog.alert({ content: '结算完成，已记录到历史结算' });
       },
     });
+  };
+
+  const hasNewPayments = (period: SettlementPeriod, periodRecords: SettlementRecord[]) => {
+    const settledAtTime = periodRecords.find((r) => r.settledAt)?.settledAt;
+    if (!settledAtTime) return false;
+    return bills.some(
+      (b) =>
+        b.apartmentId === period.apartmentId &&
+        b.periodStart.startsWith(period.yearMonth) &&
+        (b.status === 'PAID' || b.status === 'SETTLED_BY_DEPOSIT') &&
+        b.paidAt &&
+        dayjs(b.paidAt).isAfter(dayjs(settledAtTime))
+    );
   };
 
   return (
@@ -210,13 +228,18 @@ const Settlement: React.FC = () => {
             <div key={record.id} className="settlement-record">
               <div className="record-header">
                 <span className="record-party">{record.partyName}</span>
-                <Tag
-                  color={record.partyType === 'APARTMENT' ? '#1677ff' : '#722ed1'}
-                  fill="outline"
-                  style={{ fontSize: 10 }}
-                >
-                  {record.partyType === 'APARTMENT' ? '公寓方' : '房东'}
-                </Tag>
+                <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                  {record.isSupplementary && (
+                    <Tag color="#ff8f1f" fill="outline" style={{ fontSize: 10 }}>补结算</Tag>
+                  )}
+                  <Tag
+                    color={record.partyType === 'APARTMENT' ? '#1677ff' : '#722ed1'}
+                    fill="outline"
+                    style={{ fontSize: 10 }}
+                  >
+                    {record.partyType === 'APARTMENT' ? '公寓方' : '房东'}
+                  </Tag>
+                </div>
               </div>
               <div className="record-row">
                 <span>账单数</span>
@@ -236,6 +259,20 @@ const Settlement: React.FC = () => {
               </div>
             </div>
           ))}
+          {hasNewPayments(period, records) && (
+            <div className="period-actions">
+              <Button
+                size="small"
+                color="warning"
+                onClick={() => {
+                  reconcileSupplementaryAction(period.id);
+                  Toast.show('补结算完成');
+                }}
+              >
+                补结算
+              </Button>
+            </div>
+          )}
         </Card>
       ))}
 

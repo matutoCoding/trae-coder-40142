@@ -8,6 +8,7 @@ import BillDetail from './pages/BillDetail';
 import Commission from './pages/Commission';
 import Settlement from './pages/Settlement';
 import Deposit from './pages/Deposit';
+import TenantLedger from './pages/TenantLedger';
 import './App.css';
 
 const Layout: React.FC = () => (
@@ -31,6 +32,7 @@ function App() {
           <Route path="/commission" element={<Commission />} />
           <Route path="/settlement" element={<Settlement />} />
           <Route path="/deposit" element={<Deposit />} />
+          <Route path="/tenant/:tenantId" element={<TenantLedger />} />
         </Route>
       </Routes>
     </BrowserRouter>

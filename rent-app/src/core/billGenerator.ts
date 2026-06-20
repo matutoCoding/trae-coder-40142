@@ -10,11 +10,14 @@ import type {
 } from './types';
 import { calculateDiscounts } from './discountEngine';
 
-let billCounter = 0;
+function uniqueId(prefix: string): string {
+  const ts = Date.now().toString(36);
+  const rand = Math.random().toString(36).slice(2, 6);
+  return `${prefix}${ts}${rand}`;
+}
 
 export function generateBillId(): string {
-  billCounter++;
-  return `BIL${dayjs().format('YYYYMMDD')}${String(billCounter).padStart(4, '0')}`;
+  return uniqueId('BIL');
 }
 
 export function generateBill(
@@ -128,7 +131,7 @@ export function calculateDepositRefund(
   }
 
   return {
-    id: `DEP${dayjs().format('YYYYMMDD')}${String(depositCounter).padStart(4, '0')}`,
+    id: uniqueId('DEP'),
     apartmentId,
     tenantId,
     tenantName,

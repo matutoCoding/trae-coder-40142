@@ -6,17 +6,19 @@ import type {
   SettlementAdjustment,
 } from './types';
 
-let periodCounter = 0;
-let recordCounter = 0;
+function uniqueId(prefix: string): string {
+  const ts = Date.now().toString(36);
+  const rand = Math.random().toString(36).slice(2, 6);
+  return `${prefix}${ts}${rand}`;
+}
 
 export function createSettlementPeriod(
   apartmentId: string,
   yearMonth: string
 ): SettlementPeriod {
-  periodCounter++;
   const startOfMonth = dayjs(yearMonth + '-01');
   return {
-    id: `SP${dayjs().format('YYYYMMDD')}${String(periodCounter).padStart(4, '0')}`,
+    id: uniqueId('SP'),
     apartmentId,
     yearMonth,
     startDate: startOfMonth.format('YYYY-MM-DD'),
@@ -30,7 +32,6 @@ export function reconcilePeriod(
   splits: CommissionSplit[],
   adjustments: Map<string, SettlementAdjustment[]>
 ): SettlementRecord[] {
-  recordCounter++;
   const apartmentAgg = new Map<string, { totalIncome: number; billCount: number }>();
   const landlordAgg = new Map<string, { name: string; income: number; billCount: number }>();
 
@@ -67,7 +68,7 @@ export function reconcilePeriod(
     const finalAmount = Math.max(0, Math.round((agg.totalIncome + adjSum) * 100) / 100);
 
     records.push({
-      id: `SR${dayjs().format('YYYYMMDD')}${String(recordCounter++).padStart(4, '0')}`,
+      id: uniqueId('SR'),
       periodId: period.id,
       apartmentId: aptId,
       partyId: `APT_${aptId}`,
@@ -89,7 +90,7 @@ export function reconcilePeriod(
     const finalAmount = Math.max(0, Math.round((data.income + adjSum) * 100) / 100);
 
     records.push({
-      id: `SR${dayjs().format('YYYYMMDD')}${String(recordCounter++).padStart(4, '0')}`,
+      id: uniqueId('SR'),
       periodId: period.id,
       apartmentId: period.apartmentId,
       partyId: `LL_${landlordId}`,

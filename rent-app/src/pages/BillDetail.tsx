@@ -11,6 +11,7 @@ const statusColor: Record<BillStatus, string> = {
   PAID: '#00b578',
   OVERDUE: '#ff3141',
   CANCELLED: '#ccc',
+  SETTLED_BY_DEPOSIT: '#722ed1',
 };
 
 const statusLabel: Record<BillStatus, string> = {
@@ -18,6 +19,7 @@ const statusLabel: Record<BillStatus, string> = {
   PAID: '已支付',
   OVERDUE: '逾期',
   CANCELLED: '已取消',
+  SETTLED_BY_DEPOSIT: '押金抵扣',
 };
 
 const BillDetail: React.FC = () => {
@@ -101,6 +103,28 @@ const BillDetail: React.FC = () => {
         </div>
       </Card>
 
+      {bill.status === 'SETTLED_BY_DEPOSIT' && (
+        <Card className="bill-detail-card">
+          <div className="bill-detail-title">押金抵扣信息</div>
+          <div className="bill-detail-row">
+            <span>来源</span>
+            <span>押金抵扣</span>
+          </div>
+          {bill.settledByDepositId && (
+            <div className="bill-detail-row">
+              <span>关联押金记录</span>
+              <span>{bill.settledByDepositId}</span>
+            </div>
+          )}
+          {bill.paidAt && (
+            <div className="bill-detail-row">
+              <span>抵扣时间</span>
+              <span>{bill.paidAt}</span>
+            </div>
+          )}
+        </Card>
+      )}
+
       {bill.paymentInfo && (
         <Card className="bill-detail-card">
           <div className="bill-detail-title">收款信息</div>
@@ -149,6 +173,17 @@ const BillDetail: React.FC = () => {
         <div className="bill-detail-footer">
           <Button color="primary" size="large" block onClick={() => setShowPay(true)}>
             登记收款
+          </Button>
+          <Button size="large" block onClick={() => navigate(`/tenant/${bill.tenantId}`)}>
+            查看租户台账
+          </Button>
+        </div>
+      )}
+
+      {bill.status === 'SETTLED_BY_DEPOSIT' && (
+        <div className="bill-detail-footer">
+          <Button size="large" block onClick={() => navigate(`/tenant/${bill.tenantId}`)}>
+            查看租户台账
           </Button>
         </div>
       )}

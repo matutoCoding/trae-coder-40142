@@ -12,6 +12,7 @@ const statusColor: Record<BillStatus, string> = {
   PAID: '#00b578',
   OVERDUE: '#ff3141',
   CANCELLED: '#ccc',
+  SETTLED_BY_DEPOSIT: '#722ed1',
 };
 
 const statusLabel: Record<BillStatus, string> = {
@@ -19,6 +20,7 @@ const statusLabel: Record<BillStatus, string> = {
   PAID: '已支付',
   OVERDUE: '逾期',
   CANCELLED: '已取消',
+  SETTLED_BY_DEPOSIT: '押金抵扣',
 };
 
 const BillList: React.FC = () => {
@@ -51,7 +53,7 @@ const BillList: React.FC = () => {
 
   const filteredBills = useMemo(() => {
     if (activeTab === 'flow') {
-      return apartmentBills.filter((b) => b.status === 'PAID').sort(
+      return apartmentBills.filter((b) => b.status === 'PAID' || b.status === 'SETTLED_BY_DEPOSIT').sort(
         (a, b) => dayjs(b.paidAt ?? '').valueOf() - dayjs(a.paidAt ?? '').valueOf()
       );
     }
@@ -134,6 +136,7 @@ const BillList: React.FC = () => {
         <Tabs.Tab title={`待支付 (${apartmentBills.filter(b => b.status === 'PENDING').length})`} key="PENDING" />
         <Tabs.Tab title={`已支付 (${apartmentBills.filter(b => b.status === 'PAID').length})`} key="flow" />
         <Tabs.Tab title={`逾期 (${apartmentBills.filter(b => b.status === 'OVERDUE').length})`} key="OVERDUE" />
+        <Tabs.Tab title={`押金抵扣 (${apartmentBills.filter(b => b.status === 'SETTLED_BY_DEPOSIT').length})`} key="SETTLED_BY_DEPOSIT" />
       </Tabs>
 
       <div className="bill-list">
@@ -178,7 +181,26 @@ const BillList: React.FC = () => {
                 <span>应付金额</span>
                 <span className="total-amount">{formatMoney(bill.totalAmount)}</span>
               </div>
-              {bill.paymentInfo && (
+              {bill.status === 'SETTLED_BY_DEPOSIT' ? (
+                <div className="bill-pay-info">
+                  <div className="pay-info-row">
+                    <span>来源</span>
+                    <span>押金抵扣</span>
+                  </div>
+                  {bill.settledByDepositId && (
+                    <div className="pay-info-row">
+                      <span>押金记录</span>
+                      <span>{bill.settledByDepositId}</span>
+                    </div>
+                  )}
+                  {bill.paidAt && (
+                    <div className="pay-info-row">
+                      <span>抵扣时间</span>
+                      <span>{bill.paidAt}</span>
+                    </div>
+                  )}
+                </div>
+              ) : bill.paymentInfo && (
                 <div className="bill-pay-info">
                   <div className="pay-info-row">
                     <span>收款方式</span>

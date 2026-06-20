@@ -948,3 +948,82 @@
   line-height: 1;
 }
 
+.page-tenant-ledger {
+  padding-bottom: 20px;
+}
+
+.ledger-header {
+  padding: 16px;
+}
+
+.ledger-tenant-name {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.ledger-tenant-info {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.ledger-card {
+  border-radius: 12px;
+  margin-bottom: 8px;
+}
+
+.ledger-entry {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ledger-entry-left {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.ledger-entry-icon {
+  font-size: 20px;
+  line-height: 1;
+  padding-top: 2px;
+}
+
+.ledger-entry-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ledger-entry-desc {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.ledger-entry-detail {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.ledger-entry-date {
+  font-size: 11px;
+  color: var(--text-secondary);
+  opacity: 0.7;
+}
+
+.ledger-entry-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.ledger-entry-amount {
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.ledger-entry-amount.positive { color: var(--success); }
+.ledger-entry-amount.negative { color: var(--danger); }
+
