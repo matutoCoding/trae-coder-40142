@@ -92,6 +92,7 @@ export const mockBills: BillItem[] = [
     landlordId: 'LL001',
     periodStart: '2026-06-01',
     periodEnd: '2026-06-30',
+    dueDate: '2026-07-05',
     rentAmount: 4500,
     discountResult: {
       originalAmount: 4500,
@@ -110,6 +111,7 @@ export const mockBills: BillItem[] = [
     status: 'PAID',
     createdAt: '2026-06-01 00:00:00',
     paidAt: '2026-06-02 10:30:00',
+    paymentInfo: { method: 'WECHAT', remark: '6月租金', paidBy: '刘小明' },
   },
   {
     id: 'BIL202606010002',
@@ -120,6 +122,7 @@ export const mockBills: BillItem[] = [
     landlordId: 'LL001',
     periodStart: '2026-06-01',
     periodEnd: '2026-06-30',
+    dueDate: '2026-07-05',
     rentAmount: 4500,
     discountResult: {
       originalAmount: 4500,
@@ -144,6 +147,7 @@ export const mockBills: BillItem[] = [
     landlordId: 'LL002',
     periodStart: '2026-06-01',
     periodEnd: '2026-06-30',
+    dueDate: '2026-07-05',
     rentAmount: 4500,
     discountResult: {
       originalAmount: 4500,
@@ -166,6 +170,7 @@ export const mockBills: BillItem[] = [
     landlordId: 'LL003',
     periodStart: '2026-06-01',
     periodEnd: '2026-06-30',
+    dueDate: '2026-07-05',
     rentAmount: 5800,
     discountResult: {
       originalAmount: 5800,
@@ -181,6 +186,7 @@ export const mockBills: BillItem[] = [
     status: 'PAID',
     createdAt: '2026-06-01 00:00:00',
     paidAt: '2026-06-05 14:20:00',
+    paymentInfo: { method: 'BANK_TRANSFER', transactionNo: 'BT202606050012', paidBy: '孙小丽' },
   },
   {
     id: 'BIL202606010005',
@@ -191,6 +197,7 @@ export const mockBills: BillItem[] = [
     landlordId: 'LL003',
     periodStart: '2026-06-01',
     periodEnd: '2026-06-30',
+    dueDate: '2026-07-05',
     rentAmount: 5800,
     discountResult: {
       originalAmount: 5800,
@@ -215,6 +222,8 @@ export const mockDeposits: DepositRecord[] = [
     roomNumber: 'A-101',
     depositAmount: 4500,
     deductions: [],
+    unpaidBillIds: [],
+    unpaidAmount: 0,
     refundAmount: 4500,
     status: 'HELD',
   },
@@ -226,8 +235,13 @@ export const mockDeposits: DepositRecord[] = [
     roomNumber: 'A-202',
     depositAmount: 4500,
     deductions: [{ reason: '墙面修复', amount: 800 }, { reason: '清洁费', amount: 200 }],
+    unpaidBillIds: [],
+    unpaidAmount: 0,
     refundAmount: 3500,
     status: 'PARTIAL_REFUND',
+    processedAt: '2026-06-15 14:30:00',
+    processedBy: '运营-王经理',
+    processRemark: '退租结算，墙面有轻微损坏',
   },
 ];
 
@@ -275,6 +289,7 @@ export const mockSettlementRecords: SettlementRecord[] = [
     partyName: '公寓方',
     partyType: 'APARTMENT',
     totalIncome: 2475,
+    billCount: 11,
     adjustments: [],
     finalAmount: 2475,
     settledAt: '2026-06-01 10:00:00',
@@ -287,6 +302,7 @@ export const mockSettlementRecords: SettlementRecord[] = [
     partyName: '张建国',
     partyType: 'LANDLORD',
     totalIncome: 11475,
+    billCount: 45,
     adjustments: [{ reason: '维修补贴', amount: 500, type: 'CREDIT' }],
     finalAmount: 11975,
     settledAt: '2026-06-01 10:00:00',

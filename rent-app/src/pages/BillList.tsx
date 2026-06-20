@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
-import { Card, Tag, Tabs, Button, Dialog, Toast, Picker, Stepper } from 'antd-mobile';
+import React, { useState, useMemo } from 'react';
+import { Card, Tag, Tabs, Button, Dialog, Toast, Picker, Stepper, Input } from 'antd-mobile';
 import { useNavigate } from 'react-router-dom';
 import { useRentStore } from '../store/useStore';
 import { formatMoney } from '../core/reconciliator';
+import { PaymentMethodLabel } from '../core/types';
+import type { BillStatus, PaymentMethod, PaymentInfo } from '../core/types';
 import dayjs from 'dayjs';
-import type { BillStatus } from '../core/types';
 
 const statusColor: Record<BillStatus, string> = {
   PENDING: '#ff8f1f',
@@ -24,15 +25,17 @@ const BillList: React.FC = () => {
   const {
     bills,
     selectedApartmentId,
-    updateBillStatus,
     billingRules,
     updateBillingRule,
     generateBillsForMonth,
+    payBill,
   } = useRentStore();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<string>('all');
   const [showGenerate, setShowGenerate] = useState(false);
   const [showBillingConfig, setShowBillingConfig] = useState(false);
+  const [showPay, setShowPay] = useState(false);
+  const [payingBillId, setPayingBillId] = useState<string>('');
   const [generateMonth, setGenerateMonth] = useState<string>('2026-07');
 
   const currentBillingRule = billingRules.find((br) => br.apartmentId === selectedApartmentId);
@@ -40,20 +43,39 @@ const BillList: React.FC = () => {
   const [editGraceDays, setEditGraceDays] = useState(currentBillingRule?.graceDays ?? 5);
   const [editLateFeeRate, setEditLateFeeRate] = useState(currentBillingRule?.lateFeeRate ?? 0.0005);
 
+  const [payMethod, setPayMethod] = useState<PaymentMethod>('WECHAT');
+  const [payRemark, setPayRemark] = useState('');
+  const [payTransactionNo, setPayTransactionNo] = useState('');
+
   const apartmentBills = bills.filter((b) => b.apartmentId === selectedApartmentId);
 
-  const filteredBills = activeTab === 'all'
-    ? apartmentBills
-    : apartmentBills.filter((b) => b.status === activeTab);
+  const filteredBills = useMemo(() => {
+    if (activeTab === 'flow') {
+      return apartmentBills.filter((b) => b.status === 'PAID').sort(
+        (a, b) => dayjs(b.paidAt ?? '').valueOf() - dayjs(a.paidAt ?? '').valueOf()
+      );
+    }
+    if (activeTab === 'all') return apartmentBills;
+    return apartmentBills.filter((b) => b.status === activeTab);
+  }, [apartmentBills, activeTab]);
 
   const handlePay = (billId: string) => {
-    Dialog.confirm({
-      content: '确认标记为已支付？',
-      onConfirm: () => {
-        updateBillStatus(billId, 'PAID');
-        Toast.show('已标记为已支付');
-      },
-    });
+    setPayingBillId(billId);
+    setPayMethod('WECHAT');
+    setPayRemark('');
+    setPayTransactionNo('');
+    setShowPay(true);
+  };
+
+  const confirmPay = () => {
+    const paymentInfo: PaymentInfo = {
+      method: payMethod,
+      remark: payRemark || undefined,
+      transactionNo: payTransactionNo || undefined,
+    };
+    payBill(payingBillId, paymentInfo);
+    Toast.show('已标记为已收款');
+    setShowPay(false);
   };
 
   const handleGenerateBills = () => {
@@ -84,6 +106,14 @@ const BillList: React.FC = () => {
     months.push({ label: d.format('YYYY年MM月'), value: d.format('YYYY-MM') });
   }
 
+  const paymentMethodOptions: { label: string; value: PaymentMethod }[] = [
+    { label: '微信', value: 'WECHAT' },
+    { label: '支付宝', value: 'ALIPAY' },
+    { label: '银行转账', value: 'BANK_TRANSFER' },
+    { label: '现金', value: 'CASH' },
+    { label: '刷卡', value: 'CARD' },
+  ];
+
   return (
     <div className="page-bills">
       <div className="bill-actions">
@@ -102,7 +132,7 @@ const BillList: React.FC = () => {
       >
         <Tabs.Tab title={`全部 (${apartmentBills.length})`} key="all" />
         <Tabs.Tab title={`待支付 (${apartmentBills.filter(b => b.status === 'PENDING').length})`} key="PENDING" />
-        <Tabs.Tab title={`已支付 (${apartmentBills.filter(b => b.status === 'PAID').length})`} key="PAID" />
+        <Tabs.Tab title={`已支付 (${apartmentBills.filter(b => b.status === 'PAID').length})`} key="flow" />
         <Tabs.Tab title={`逾期 (${apartmentBills.filter(b => b.status === 'OVERDUE').length})`} key="OVERDUE" />
       </Tabs>
 
@@ -148,8 +178,34 @@ const BillList: React.FC = () => {
                 <span>应付金额</span>
                 <span className="total-amount">{formatMoney(bill.totalAmount)}</span>
               </div>
+              {bill.paymentInfo && (
+                <div className="bill-pay-info">
+                  <div className="pay-info-row">
+                    <span>收款方式</span>
+                    <span>{PaymentMethodLabel[bill.paymentInfo.method]}</span>
+                  </div>
+                  {bill.paidAt && (
+                    <div className="pay-info-row">
+                      <span>收款时间</span>
+                      <span>{bill.paidAt}</span>
+                    </div>
+                  )}
+                  {bill.paymentInfo.transactionNo && (
+                    <div className="pay-info-row">
+                      <span>流水号</span>
+                      <span>{bill.paymentInfo.transactionNo}</span>
+                    </div>
+                  )}
+                  {bill.paymentInfo.remark && (
+                    <div className="pay-info-row">
+                      <span>备注</span>
+                      <span>{bill.paymentInfo.remark}</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
-            {bill.status === 'PENDING' && (
+            {(bill.status === 'PENDING' || bill.status === 'OVERDUE') && (
               <div className="bill-card-footer">
                 <Button
                   size="small"
@@ -159,13 +215,57 @@ const BillList: React.FC = () => {
                     handlePay(bill.id);
                   }}
                 >
-                  标记已付
+                  登记收款
                 </Button>
               </div>
             )}
           </Card>
         ))}
       </div>
+
+      <Dialog
+        visible={showPay}
+        title="登记收款"
+        content={
+          <div className="dialog-form">
+            <div className="form-item">
+              <span>收款方式</span>
+              <Picker
+                columns={[paymentMethodOptions]}
+                onConfirm={(v) => setPayMethod(v[0] as PaymentMethod)}
+              >
+                {(_, actions) => (
+                  <Button size="small" fill="outline" onClick={actions.open}>
+                    {PaymentMethodLabel[payMethod]}
+                  </Button>
+                )}
+              </Picker>
+            </div>
+            <div className="form-item">
+              <span>流水号</span>
+              <Input
+                placeholder="选填：交易流水号"
+                value={payTransactionNo}
+                onChange={setPayTransactionNo}
+              />
+            </div>
+            <div className="form-item">
+              <span>备注</span>
+              <Input
+                placeholder="选填：备注信息"
+                value={payRemark}
+                onChange={setPayRemark}
+              />
+            </div>
+          </div>
+        }
+        closeOnAction
+        onClose={() => setShowPay(false)}
+        actions={[
+          { key: "cancel", text: "取消" },
+          { key: "confirm", text: "确认收款", bold: true, onClick: confirmPay },
+        ]}
+      />
 
       <Dialog
         visible={showGenerate}

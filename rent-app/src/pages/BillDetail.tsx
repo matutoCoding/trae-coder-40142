@@ -1,9 +1,10 @@
-import React from 'react';
-import { Card, Tag, Button } from 'antd-mobile';
+import React, { useState } from 'react';
+import { Card, Tag, Button, NavBar, Dialog, Toast, Picker, Input } from 'antd-mobile';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useRentStore } from '../store/useStore';
 import { formatMoney } from '../core/reconciliator';
-import type { BillStatus, DiscountType } from '../core/types';
+import { PaymentMethodLabel } from '../core/types';
+import type { BillStatus, PaymentMethod, PaymentInfo } from '../core/types';
 
 const statusColor: Record<BillStatus, string> = {
   PENDING: '#ff8f1f',
@@ -19,151 +20,182 @@ const statusLabel: Record<BillStatus, string> = {
   CANCELLED: '已取消',
 };
 
-const typeLabel: Record<DiscountType, string> = {
-  COUPON: '优惠券',
-  FULL_REDUCTION: '满减',
-  PERCENTAGE: '折扣',
-  FIXED: '固定优惠',
-};
-
 const BillDetail: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams();
   const navigate = useNavigate();
-  const { bills, updateBillStatus, commissionRules, getCommissionSplits } = useRentStore();
+  const { bills, payBill } = useRentStore();
+  const [showPay, setShowPay] = useState(false);
+  const [payMethod, setPayMethod] = useState<PaymentMethod>('WECHAT');
+  const [payRemark, setPayRemark] = useState('');
+  const [payTransactionNo, setPayTransactionNo] = useState('');
 
   const bill = bills.find((b) => b.id === id);
   if (!bill) {
-    return <div className="empty-state">账单不存在</div>;
+    return (
+      <div>
+        <NavBar onBack={() => navigate(-1)}>账单详情</NavBar>
+        <div className="empty-state">未找到账单</div>
+      </div>
+    );
   }
 
-  const commissionRule = commissionRules.find((cr) => cr.apartmentId === bill.apartmentId && cr.landlordId === bill.landlordId);
-  const splits = getCommissionSplits(bill.apartmentId);
-  const split = splits.find((s) => s.billId === bill.id);
-
-  const handlePay = () => {
-    updateBillStatus(bill.id, 'PAID');
+  const handleConfirmPay = () => {
+    const paymentInfo: PaymentInfo = {
+      method: payMethod,
+      remark: payRemark || undefined,
+      transactionNo: payTransactionNo || undefined,
+    };
+    payBill(bill.id, paymentInfo);
+    Toast.show('已标记为已收款');
+    setShowPay(false);
   };
+
+  const paymentMethodOptions: { label: string; value: PaymentMethod }[] = [
+    { label: '微信', value: 'WECHAT' },
+    { label: '支付宝', value: 'ALIPAY' },
+    { label: '银行转账', value: 'BANK_TRANSFER' },
+    { label: '现金', value: 'CASH' },
+    { label: '刷卡', value: 'CARD' },
+  ];
 
   return (
     <div className="page-bill-detail">
-      <div className="detail-header">
-        <Button size="small" fill="outline" onClick={() => navigate(-1)}>
-          ← 返回
-        </Button>
-        <Tag color={statusColor[bill.status]} fill="outline" style={{ fontSize: 14, padding: '4px 12px' }}>
+      <NavBar onBack={() => navigate(-1)}>账单详情</NavBar>
+
+      <div className="bill-detail-header">
+        <div>
+          <div className="bill-detail-tenant">{bill.tenantName}</div>
+          <div className="bill-detail-room">{bill.roomNumber} · {bill.periodStart} ~ {bill.periodEnd}</div>
+        </div>
+        <Tag color={statusColor[bill.status]} round fill="outline">
           {statusLabel[bill.status]}
         </Tag>
       </div>
 
-      <Card className="detail-card">
-        <div className="detail-section-title">基本信息</div>
-        <div className="detail-row">
-          <span>租户</span>
-          <span>{bill.tenantName}</span>
-        </div>
-        <div className="detail-row">
-          <span>房间号</span>
-          <span>{bill.roomNumber}</span>
-        </div>
-        <div className="detail-row">
-          <span>账单周期</span>
-          <span>{bill.periodStart} ~ {bill.periodEnd}</span>
-        </div>
-        <div className="detail-row">
-          <span>创建时间</span>
-          <span>{bill.createdAt}</span>
-        </div>
-        {bill.paidAt && (
-          <div className="detail-row">
-            <span>支付时间</span>
-            <span>{bill.paidAt}</span>
-          </div>
-        )}
-      </Card>
-
-      <Card className="detail-card">
-        <div className="detail-section-title">费用明细</div>
-        <div className="detail-row">
+      <Card className="bill-detail-card">
+        <div className="bill-detail-title">金额明细</div>
+        <div className="bill-detail-row">
           <span>原始租金</span>
           <span>{formatMoney(bill.rentAmount)}</span>
         </div>
-
-        {bill.discountResult.steps.length > 0 && (
-          <div className="discount-steps">
-            <div className="detail-section-subtitle">优惠计算过程</div>
-            {bill.discountResult.steps.map((step, i) => (
-              <div key={i} className="discount-step-detail">
-                <div className="step-header">
-                  <span className="step-index">第{i + 1}步</span>
-                  <Tag color="#1677ff" fill="outline" style={{ fontSize: 11 }}>
-                    {typeLabel[step.type]}
-                  </Tag>
-                </div>
-                <div className="step-body">
-                  <div className="step-row">
-                    <span>规则: {step.ruleName}</span>
-                    <span className="step-discount">-{formatMoney(step.discountAmount)}</span>
-                  </div>
-                  <div className="step-row">
-                    <span>计算前: {formatMoney(step.amountBefore)}</span>
-                    <span>计算后: {formatMoney(step.amountAfter)}</span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        <div className="detail-row discount-total">
-          <span>优惠合计</span>
-          <span className="discount-amount">-{formatMoney(bill.discountResult.totalDiscount)}</span>
+        <div className="bill-detail-row discount">
+          <span>优惠减免 ({bill.discountResult.steps.length}项)</span>
+          <span>-{formatMoney(bill.discountResult.totalDiscount)}</span>
         </div>
-        {bill.discountResult.negFloorApplied && (
-          <div className="neg-warning">⚠️ 优惠叠加后为负值，已自动兜底为0</div>
-        )}
+        {bill.discountResult.steps.map((step, i) => (
+          <div key={i} className="bill-detail-sub">
+            <span>└ {step.ruleName}</span>
+            <span>-{formatMoney(step.discountAmount)}</span>
+          </div>
+        ))}
         {bill.lateFee > 0 && (
-          <div className="detail-row late-fee">
+          <div className="bill-detail-row late">
             <span>滞纳金</span>
-            <span className="late-amount">+{formatMoney(bill.lateFee)}</span>
+            <span>+{formatMoney(bill.lateFee)}</span>
           </div>
         )}
-        <div className="detail-row total-row">
+        <div className="bill-detail-divider" />
+        <div className="bill-detail-row total">
           <span>应付金额</span>
           <span className="total-amount">{formatMoney(bill.totalAmount)}</span>
         </div>
       </Card>
 
-      {commissionRule && (
-        <Card className="detail-card">
-          <div className="detail-section-title">抽成分账</div>
-          <div className="detail-row">
-            <span>公寓方抽成比例</span>
-            <span>{(commissionRule.apartmentShare * 100).toFixed(0)}%</span>
+      {bill.paymentInfo && (
+        <Card className="bill-detail-card">
+          <div className="bill-detail-title">收款信息</div>
+          <div className="bill-detail-row">
+            <span>收款方式</span>
+            <span>{PaymentMethodLabel[bill.paymentInfo.method]}</span>
           </div>
-          <div className="detail-row">
-            <span>房东抽成比例</span>
-            <span>{(commissionRule.landlordShare * 100).toFixed(0)}%</span>
-          </div>
-          {split && (
-            <>
-              <div className="detail-row">
-                <span>公寓方收入</span>
-                <span>{formatMoney(split.apartmentIncome)}</span>
-              </div>
-              <div className="detail-row">
-                <span>房东 ({split.landlordName}) 收入</span>
-                <span>{formatMoney(split.landlordIncome)}</span>
-              </div>
-            </>
+          {bill.paidAt && (
+            <div className="bill-detail-row">
+              <span>收款时间</span>
+              <span>{bill.paidAt}</span>
+            </div>
+          )}
+          {bill.paymentInfo.transactionNo && (
+            <div className="bill-detail-row">
+              <span>流水号</span>
+              <span>{bill.paymentInfo.transactionNo}</span>
+            </div>
+          )}
+          {bill.paymentInfo.remark && (
+            <div className="bill-detail-row">
+              <span>备注</span>
+              <span>{bill.paymentInfo.remark}</span>
+            </div>
           )}
         </Card>
       )}
 
-      {bill.status === 'PENDING' && (
-        <Button block color="primary" size="large" onClick={handlePay} style={{ marginTop: 16 }}>
-          确认收款
-        </Button>
+      <Card className="bill-detail-card">
+        <div className="bill-detail-title">账单信息</div>
+        <div className="bill-detail-row">
+          <span>账单ID</span>
+          <span>{bill.id}</span>
+        </div>
+        <div className="bill-detail-row">
+          <span>生成时间</span>
+          <span>{bill.createdAt}</span>
+        </div>
+        <div className="bill-detail-row">
+          <span>到期时间</span>
+          <span>{bill.dueDate}</span>
+        </div>
+      </Card>
+
+      {(bill.status === 'PENDING' || bill.status === 'OVERDUE') && (
+        <div className="bill-detail-footer">
+          <Button color="primary" size="large" block onClick={() => setShowPay(true)}>
+            登记收款
+          </Button>
+        </div>
       )}
+
+      <Dialog
+        visible={showPay}
+        title="登记收款"
+        content={
+          <div className="dialog-form">
+            <div className="form-item">
+              <span>收款方式</span>
+              <Picker
+                columns={[paymentMethodOptions]}
+                onConfirm={(v) => setPayMethod(v[0] as PaymentMethod)}
+              >
+                {(_, actions) => (
+                  <Button size="small" fill="outline" onClick={actions.open}>
+                    {PaymentMethodLabel[payMethod]}
+                  </Button>
+                )}
+              </Picker>
+            </div>
+            <div className="form-item">
+              <span>流水号</span>
+              <Input
+                placeholder="选填：交易流水号"
+                value={payTransactionNo}
+                onChange={setPayTransactionNo}
+              />
+            </div>
+            <div className="form-item">
+              <span>备注</span>
+              <Input
+                placeholder="选填：备注信息"
+                value={payRemark}
+                onChange={setPayRemark}
+              />
+            </div>
+          </div>
+        }
+        closeOnAction
+        onClose={() => setShowPay(false)}
+        actions={[
+          { key: "cancel", text: "取消" },
+          { key: "confirm", text: "确认收款", bold: true, onClick: handleConfirmPay },
+        ]}
+      />
     </div>
   );
 };

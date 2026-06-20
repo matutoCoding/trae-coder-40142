@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Card, Tag, Button, Dialog, Input, Toast, Stepper } from 'antd-mobile';
+import React, { useState, useMemo } from 'react';
+import { Card, Tag, Button, Dialog, Input, Toast, Stepper, CheckList } from 'antd-mobile';
 import { useRentStore } from '../store/useStore';
 import { formatMoney } from '../core/reconciliator';
 import { calculateDepositRefund } from '../core/billGenerator';
@@ -16,17 +16,21 @@ const Deposit: React.FC = () => {
   const {
     deposits,
     tenants,
+    bills,
     selectedApartmentId,
     addDeposit,
-    processDepositDeductions,
+    processDepositWithUnpaid,
+    getUnpaidBills,
     billingRules,
   } = useRentStore();
 
-  const [showDeduction, setShowDeduction] = useState(false);
+  const [showRefund, setShowRefund] = useState(false);
   const [selectedDepositId, setSelectedDepositId] = useState<string>('');
   const [deductions, setDeductions] = useState<DepositDeduction[]>([]);
   const [newReason, setNewReason] = useState('');
   const [newAmount, setNewAmount] = useState(0);
+  const [selectedUnpaidIds, setSelectedUnpaidIds] = useState<string[]>([]);
+  const [processRemark, setProcessRemark] = useState('');
 
   const apartmentDeposits = deposits.filter(
     (d) => d.apartmentId === selectedApartmentId
@@ -37,6 +41,21 @@ const Deposit: React.FC = () => {
   const tenantsWithoutDeposit = tenants.filter(
     (t) => t.apartmentId === selectedApartmentId && !apartmentDeposits.some((d) => d.tenantId === t.id)
   );
+
+  const selectedDeposit = useMemo(
+    () => deposits.find((d) => d.id === selectedDepositId) ?? null,
+    [deposits, selectedDepositId]
+  );
+
+  const unpaidBills = useMemo(() => {
+    if (!selectedDeposit) return [];
+    return getUnpaidBills(selectedDeposit.tenantId);
+  }, [selectedDeposit, getUnpaidBills]);
+
+  const totalDeductions = deductions.reduce((s, d) => s + d.amount, 0);
+  const selectedUnpaidAmount = unpaidBills
+    .filter((b) => selectedUnpaidIds.includes(b.id))
+    .reduce((s, b) => s + b.totalAmount, 0);
 
   const handleAddDeduction = () => {
     if (!newReason || newAmount <= 0) {
@@ -52,12 +71,21 @@ const Deposit: React.FC = () => {
     setDeductions(deductions.filter((_, i) => i !== index));
   };
 
-  const handleConfirmDeduction = () => {
-    const result = processDepositDeductions(selectedDepositId, deductions);
+  const handleConfirmRefund = () => {
+    if (!selectedDeposit) return;
+    const result = processDepositWithUnpaid(
+      selectedDeposit.id,
+      deductions,
+      selectedUnpaidIds,
+      '运营-管理员',
+      processRemark || undefined
+    );
     const statusInfo = statusLabel[result.status];
     Toast.show(`处理完成：${statusInfo.label}，应退 ${formatMoney(result.refundAmount)}`);
-    setShowDeduction(false);
+    setShowRefund(false);
     setDeductions([]);
+    setSelectedUnpaidIds([]);
+    setProcessRemark('');
     setSelectedDepositId('');
   };
 
@@ -84,12 +112,14 @@ const Deposit: React.FC = () => {
     Toast.show(`已为 ${tenant.name} 创建押金记录 ${formatMoney(depositAmount)}`);
   };
 
-  const openDeductionDialog = (depositId: string) => {
+  const openRefundDialog = (depositId: string) => {
     const deposit = deposits.find((d) => d.id === depositId);
     if (!deposit) return;
     setSelectedDepositId(depositId);
     setDeductions([...deposit.deductions]);
-    setShowDeduction(true);
+    setSelectedUnpaidIds(deposit.unpaidBillIds ?? []);
+    setProcessRemark(deposit.processRemark ?? '');
+    setShowRefund(true);
   };
 
   return (
@@ -100,6 +130,9 @@ const Deposit: React.FC = () => {
       )}
       {apartmentDeposits.map((deposit) => {
         const statusInfo = statusLabel[deposit.status];
+        const unpaidForTenant = bills.filter(
+          (b) => b.tenantId === deposit.tenantId && (b.status === 'PENDING' || b.status === 'OVERDUE')
+        );
         return (
           <Card key={deposit.id} className="deposit-card">
             <div className="deposit-header">
@@ -127,43 +160,50 @@ const Deposit: React.FC = () => {
                   ))}
                 </div>
               )}
+              {(deposit.unpaidBillIds?.length ?? 0) > 0 && (
+                <div className="deduction-list">
+                  <div className="deduction-title">抵扣未缴账单 ({deposit.unpaidBillIds!.length}笔)</div>
+                  <div className="deposit-row deduction">
+                    <span>未缴合计</span>
+                    <span className="deduction-amount">-{formatMoney(deposit.unpaidAmount ?? 0)}</span>
+                  </div>
+                </div>
+              )}
               <div className="deposit-row total">
                 <span>应退金额</span>
                 <span className="refund-amount">{formatMoney(deposit.refundAmount)}</span>
               </div>
+              {deposit.status !== 'HELD' && (
+                <div className="deposit-process-info">
+                  <div className="process-row">
+                    <span>处理人</span>
+                    <span>{deposit.processedBy ?? '-'}</span>
+                  </div>
+                  <div className="process-row">
+                    <span>处理时间</span>
+                    <span>{deposit.processedAt ?? '-'}</span>
+                  </div>
+                  {deposit.processRemark && (
+                    <div className="process-row">
+                      <span>处理备注</span>
+                      <span>{deposit.processRemark}</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
             {deposit.status === 'HELD' && (
               <div className="deposit-actions">
                 <Button
                   size="small"
                   color="primary"
-                  fill="outline"
-                  onClick={() => openDeductionDialog(deposit.id)}
+                  onClick={() => openRefundDialog(deposit.id)}
                 >
-                  录入扣减
+                  退租结算
                 </Button>
-                <Button
-                  size="small"
-                  color="success"
-                  onClick={() => {
-                    processDepositDeductions(deposit.id, []);
-                    Toast.show('已全额退还');
-                  }}
-                >
-                  全额退还
-                </Button>
-              </div>
-            )}
-            {(deposit.status === 'PARTIAL_REFUND') && (
-              <div className="deposit-actions">
-                <Button
-                  size="small"
-                  color="primary"
-                  fill="outline"
-                  onClick={() => openDeductionDialog(deposit.id)}
-                >
-                  修改扣减
-                </Button>
+                {unpaidForTenant.length > 0 && (
+                  <div className="unpaid-hint">有 {unpaidForTenant.length} 笔未缴账单</div>
+                )}
               </div>
             )}
           </Card>
@@ -198,48 +238,107 @@ const Deposit: React.FC = () => {
       )}
 
       <Dialog
-        visible={showDeduction}
-        title="录入扣减项"
+        visible={showRefund}
+        title="退租结算 - 押金处理"
         content={
           <div className="dialog-form">
-            {deductions.length > 0 && (
-              <div className="existing-deductions">
-                {deductions.map((d, i) => (
-                  <div key={i} className="deduction-item-row">
-                    <span>{d.reason}: -{formatMoney(d.amount)}</span>
-                    <Button size="mini" fill="outline" color="danger" onClick={() => handleRemoveDeduction(i)}>
-                      删除
-                    </Button>
-                  </div>
-                ))}
+            {unpaidBills.length > 0 && (
+              <div className="form-section">
+                <div className="form-section-title">未缴账单抵扣 ({selectedUnpaidAmount > 0 ? formatMoney(selectedUnpaidAmount) : '未选择'})</div>
+                <CheckList
+                  value={selectedUnpaidIds}
+                  onChange={(v) => setSelectedUnpaidIds(v as string[])}
+                >
+                  {unpaidBills.map((b) => (
+                    <CheckList.Item key={b.id} value={b.id}>
+                      {b.periodStart.slice(0, 7)} · {formatMoney(b.totalAmount)}
+                      {b.status === 'OVERDUE' && ' · 逾期'}
+                    </CheckList.Item>
+                  ))}
+                </CheckList>
               </div>
             )}
-            <div className="form-item">
-              <span>扣减原因</span>
+
+            <div className="form-section">
+              <div className="form-section-title">扣减项 ({totalDeductions > 0 ? formatMoney(totalDeductions) : '无'})</div>
+              {deductions.length > 0 && (
+                <div className="existing-deductions">
+                  {deductions.map((d, i) => (
+                    <div key={i} className="deduction-item-row">
+                      <span>{d.reason}: -{formatMoney(d.amount)}</span>
+                      <Button size="mini" fill="outline" color="danger" onClick={() => handleRemoveDeduction(i)}>
+                        删除
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="form-item">
+                <span>扣减原因</span>
+                <Input
+                  placeholder="如：墙面修复"
+                  value={newReason}
+                  onChange={setNewReason}
+                />
+              </div>
+              <div className="form-item">
+                <span>扣减金额</span>
+                <Stepper value={newAmount} onChange={(v) => setNewAmount(v)} min={0} step={50} />
+              </div>
+              <Button size="small" fill="outline" onClick={handleAddDeduction} style={{ marginTop: 8 }}>
+                + 添加扣减项
+              </Button>
+            </div>
+
+            <div className="form-section">
+              <div className="form-section-title">处理备注</div>
               <Input
-                placeholder="如：墙面修复"
-                value={newReason}
-                onChange={setNewReason}
+                placeholder="选填：退租情况说明"
+                value={processRemark}
+                onChange={setProcessRemark}
               />
             </div>
-            <div className="form-item">
-              <span>扣减金额</span>
-              <Stepper value={newAmount} onChange={(v) => setNewAmount(v)} min={0} step={50} />
-            </div>
-            <Button size="small" fill="outline" onClick={handleAddDeduction} style={{ marginTop: 8 }}>
-              + 添加扣减项
-            </Button>
+
+            {selectedDeposit && (
+              <div className="deposit-preview">
+                <div className="deposit-row">
+                  <span>押金金额</span>
+                  <span>{formatMoney(selectedDeposit.depositAmount)}</span>
+                </div>
+                <div className="deposit-row deduction">
+                  <span>扣减合计</span>
+                  <span>-{formatMoney(totalDeductions)}</span>
+                </div>
+                {selectedUnpaidAmount > 0 && (
+                  <div className="deposit-row deduction">
+                    <span>抵扣未缴</span>
+                    <span>-{formatMoney(selectedUnpaidAmount)}</span>
+                  </div>
+                )}
+                <div className="deposit-row total">
+                  <span>预计应退</span>
+                  <span className="refund-amount">
+                    {formatMoney(Math.max(0, selectedDeposit.depositAmount - totalDeductions - selectedUnpaidAmount))}
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
         }
         closeOnAction
-        onClose={() => { setShowDeduction(false); setDeductions([]); }}
+        onClose={() => {
+          setShowRefund(false);
+          setDeductions([]);
+          setSelectedUnpaidIds([]);
+          setProcessRemark('');
+        }}
         actions={[
           { key: "cancel", text: "取消" },
           {
             key: "confirm",
-            text: "确认处理",
+            text: "确认退还",
             bold: true,
-            onClick: handleConfirmDeduction,
+            onClick: handleConfirmRefund,
           },
         ]}
       />

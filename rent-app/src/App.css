@@ -747,3 +747,204 @@
 .settled-time-row {
   margin-top: 4px;
 }
+
+.bill-pay-info {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border);
+  background: #f8f9fc;
+  padding: 8px;
+  border-radius: 8px;
+}
+
+.pay-info-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.bill-detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 16px 8px;
+}
+
+.bill-detail-tenant {
+  font-weight: 700;
+  font-size: 18px;
+}
+
+.bill-detail-room {
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+.bill-detail-card {
+  border-radius: 12px;
+  margin-bottom: 12px;
+}
+
+.bill-detail-title {
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.bill-detail-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  font-size: 13px;
+}
+
+.bill-detail-row.discount { color: var(--danger); }
+.bill-detail-row.late { color: var(--warning); }
+
+.bill-detail-sub {
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 0 2px 16px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.bill-detail-divider {
+  border-top: 1px dashed var(--border);
+  margin: 6px 0;
+}
+
+.bill-detail-row.total {
+  font-weight: 600;
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+  padding-top: 8px;
+  font-size: 15px;
+}
+
+.bill-detail-footer {
+  padding: 16px;
+  position: sticky;
+  bottom: 0;
+  background: var(--bg);
+}
+
+.progress-sub {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.progress-sub-value {
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.flow-card {
+  border-radius: 12px;
+}
+
+.flow-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+
+.flow-item:last-child { border-bottom: none; }
+
+.flow-tenant {
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.flow-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.flow-amount {
+  color: var(--success);
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.deposit-process-info {
+  margin-top: 8px;
+  padding: 8px;
+  background: #f8f9fc;
+  border-radius: 8px;
+}
+
+.process-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.unpaid-hint {
+  font-size: 11px;
+  color: var(--warning);
+  align-self: center;
+}
+
+.form-section {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.form-section:last-child { border-bottom: none; }
+
+.form-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--text);
+}
+
+.deposit-preview {
+  margin-top: 8px;
+  padding: 10px;
+  background: #fff7e6;
+  border-radius: 8px;
+}
+
+.filter-tags {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.filter-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.filter-tag-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--border);
+  color: var(--text-secondary);
+  font-size: 14px;
+  cursor: pointer;
+  line-height: 1;
+}
+

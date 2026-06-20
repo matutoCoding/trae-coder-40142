@@ -31,22 +31,27 @@ export function reconcilePeriod(
   adjustments: Map<string, SettlementAdjustment[]>
 ): SettlementRecord[] {
   recordCounter++;
-  const apartmentAgg = new Map<string, number>();
-  const landlordAgg = new Map<string, { name: string; income: number }>();
+  const apartmentAgg = new Map<string, { totalIncome: number; billCount: number }>();
+  const landlordAgg = new Map<string, { name: string; income: number; billCount: number }>();
 
   for (const split of splits) {
     if (split.apartmentId !== period.apartmentId) continue;
 
-    const aptIncome = apartmentAgg.get(split.apartmentId) ?? 0;
-    apartmentAgg.set(split.apartmentId, aptIncome + split.apartmentIncome);
+    const apt = apartmentAgg.get(split.apartmentId) ?? { totalIncome: 0, billCount: 0 };
+    apartmentAgg.set(split.apartmentId, {
+      totalIncome: apt.totalIncome + split.apartmentIncome,
+      billCount: apt.billCount + 1,
+    });
 
     const existing = landlordAgg.get(split.landlordId);
     if (existing) {
       existing.income += split.landlordIncome;
+      existing.billCount += 1;
     } else {
       landlordAgg.set(split.landlordId, {
         name: split.landlordName,
         income: split.landlordIncome,
+        billCount: 1,
       });
     }
   }
@@ -54,12 +59,12 @@ export function reconcilePeriod(
   const records: SettlementRecord[] = [];
   const now = dayjs().format('YYYY-MM-DD HH:mm:ss');
 
-  for (const [aptId, totalIncome] of apartmentAgg) {
+  for (const [aptId, agg] of apartmentAgg) {
     const aptAdjustments = adjustments.get(`APT_${aptId}`) ?? [];
     const adjSum = aptAdjustments.reduce((sum, a) => {
       return sum + (a.type === 'CREDIT' ? a.amount : -a.amount);
     }, 0);
-    const finalAmount = Math.max(0, Math.round((totalIncome + adjSum) * 100) / 100);
+    const finalAmount = Math.max(0, Math.round((agg.totalIncome + adjSum) * 100) / 100);
 
     records.push({
       id: `SR${dayjs().format('YYYYMMDD')}${String(recordCounter++).padStart(4, '0')}`,
@@ -68,7 +73,8 @@ export function reconcilePeriod(
       partyId: `APT_${aptId}`,
       partyName: '公寓方',
       partyType: 'APARTMENT',
-      totalIncome: Math.round(totalIncome * 100) / 100,
+      totalIncome: Math.round(agg.totalIncome * 100) / 100,
+      billCount: agg.billCount,
       adjustments: aptAdjustments,
       finalAmount,
       settledAt: period.status === 'SETTLED' ? now : undefined,
@@ -90,6 +96,7 @@ export function reconcilePeriod(
       partyName: data.name,
       partyType: 'LANDLORD',
       totalIncome: Math.round(data.income * 100) / 100,
+      billCount: data.billCount,
       adjustments: llAdjustments,
       finalAmount,
       settledAt: period.status === 'SETTLED' ? now : undefined,

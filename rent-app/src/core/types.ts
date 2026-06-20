@@ -57,6 +57,23 @@ export interface DiscountCalcResult {
 
 export type BillStatus = 'PENDING' | 'PAID' | 'OVERDUE' | 'CANCELLED';
 
+export type PaymentMethod = 'CASH' | 'BANK_TRANSFER' | 'WECHAT' | 'ALIPAY' | 'CARD';
+
+export const PaymentMethodLabel: Record<PaymentMethod, string> = {
+  CASH: '现金',
+  BANK_TRANSFER: '银行转账',
+  WECHAT: '微信',
+  ALIPAY: '支付宝',
+  CARD: '刷卡',
+};
+
+export interface PaymentInfo {
+  method: PaymentMethod;
+  remark?: string;
+  transactionNo?: string;
+  paidBy?: string;
+}
+
 export interface BillingRule {
   id: string;
   apartmentId: string;
@@ -76,6 +93,7 @@ export interface BillItem {
   landlordId: string;
   periodStart: string;
   periodEnd: string;
+  dueDate: string;
   rentAmount: number;
   discountResult: DiscountCalcResult;
   lateFee: number;
@@ -83,6 +101,14 @@ export interface BillItem {
   status: BillStatus;
   createdAt: string;
   paidAt?: string;
+  paymentInfo?: PaymentInfo;
+}
+
+export type DepositStatus = 'HELD' | 'PARTIAL_REFUND' | 'FULL_REFUND' | 'FORFEITED';
+
+export interface DepositDeduction {
+  reason: string;
+  amount: number;
 }
 
 export interface DepositRecord {
@@ -93,13 +119,13 @@ export interface DepositRecord {
   roomNumber: string;
   depositAmount: number;
   deductions: DepositDeduction[];
+  unpaidBillIds: string[];
+  unpaidAmount: number;
   refundAmount: number;
-  status: 'HELD' | 'PARTIAL_REFUND' | 'FULL_REFUND' | 'FORFEITED';
-}
-
-export interface DepositDeduction {
-  reason: string;
-  amount: number;
+  status: DepositStatus;
+  processedAt?: string;
+  processedBy?: string;
+  processRemark?: string;
 }
 
 export interface CommissionRule {
@@ -143,6 +169,7 @@ export interface SettlementRecord {
   partyName: string;
   partyType: 'APARTMENT' | 'LANDLORD';
   totalIncome: number;
+  billCount: number;
   adjustments: SettlementAdjustment[];
   finalAmount: number;
   settledAt?: string;

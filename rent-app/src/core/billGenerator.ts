@@ -63,6 +63,7 @@ export function generateBill(
     landlordId,
     periodStart,
     periodEnd,
+    dueDate: graceDeadline,
     rentAmount: billingRule.rentAmount,
     discountResult,
     lateFee,
@@ -106,14 +107,17 @@ export function calculateDepositRefund(
   tenantName: string,
   roomNumber: string,
   depositAmount: number,
-  deductions: DepositDeduction[]
+  deductions: DepositDeduction[],
+  unpaidBillIds: string[] = [],
+  unpaidAmount: number = 0
 ): DepositRecord {
   depositCounter++;
   const totalDeductions = deductions.reduce((sum, d) => sum + d.amount, 0);
-  const refundAmount = Math.max(0, depositAmount - totalDeductions);
+  const totalUnpaid = unpaidAmount;
+  const refundAmount = Math.max(0, depositAmount - totalDeductions - totalUnpaid);
 
   let status: DepositRecord['status'];
-  if (totalDeductions === 0) {
+  if (totalDeductions === 0 && totalUnpaid === 0) {
     status = 'HELD';
   } else if (refundAmount === depositAmount) {
     status = 'FULL_REFUND';
@@ -131,6 +135,8 @@ export function calculateDepositRefund(
     roomNumber,
     depositAmount,
     deductions,
+    unpaidBillIds,
+    unpaidAmount,
     refundAmount,
     status,
   };
